@@ -98,14 +98,14 @@ ProgVar.types <- c("Categorical", "Continuous")
 Heterogeneity.types <- c("No Heterogeneity", "Heterogeneity")
 Noise.types <- c("No Noise", "Noise")
 
-#for(l in 1:length(Noise.types)) {
+for(l in 1:length(Noise.types)) {
   
-Noise.type <- Noise.types[2]
+Noise.type <- Noise.types[j]
 
-#for(k in 1:length(Heterogeneity.types)) {
+for(k in 1:length(Heterogeneity.types)) {
 
 ### Setting Heterogeneity type
-Heterogeneity.type <- Heterogeneity.types[2]
+Heterogeneity.type <- Heterogeneity.types[k]
   
 for(j in 1:length(ProgVar.types)) {
 
@@ -151,35 +151,35 @@ ProgVar.type <- ProgVar.types[j]
                                          0.75,    # Categorical 
                                          0.00,    # Treatment * Categorical_Predictor
                                          1.00,    # Outcome_BL
-                                         0.75,    # Gender
-                                         0.25),  # Age
+                                         -0.75,    # Gender
+                                         -0.25),  # Age
       ### Heterogeneity and Categorical Prognostic Variable
       Heterogeneity.type == "Heterogeneity" & 
       ProgVar.type == "Categorical" ~  c(0.25,    # Intercept
                                          1.00,    # Treatment
                                          0.75,    # Categorical 
-                                         1.00,    # Treatment * Categorical Predictor
-                                         1.00,    # Outcome_BL
-                                         0.75,    # Gender
-                                         0.25),  # Age
+                                         0.75,    # Treatment * Categorical Predictor
+                                         1.25,    # Outcome_BL
+                                         -0.75,    # Gender
+                                         -0.25),  # Age
       ### No Heterogeneity and Continous Prognostic Variable
       Heterogeneity.type == "No Heterogeneity" & 
       ProgVar.type == "Continuous" ~  c(0.25,     # Intercept
                                          1.00,    # Treatment
-                                         0.25,    # Continuous 
+                                         0.75,    # Continuous 
                                          0.00,    # Treatment * Continuous Predictor
                                          1.00,    # Outcome_BL
-                                         0.75,    # Gender
-                                         0.25),  # Age
+                                         -0.75,    # Gender
+                                         -0.25),  # Age
       ### Heterogeneity and Continuous Prognostic Variable
       Heterogeneity.type == "Heterogeneity" & 
       ProgVar.type == "Continuous" ~  c(0.25,     # Intercept
                                          1.00,    # Treatment
-                                         0.25,    # Continuous 
-                                         0.25,    # Treatment * Continuous Predictor
+                                         0.75,    # Continuous 
+                                         0.75,    # Treatment * Continuous Predictor
                                          1.00,    # Outcome_BL
-                                         0.75,    # Gender
-                                         0.25),  # Age
+                                         -0.75,    # Gender
+                                         -0.25),  # Age
       TRUE ~ NA)
     
     ### Calculating Trial Outcome
