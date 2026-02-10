@@ -119,7 +119,7 @@ ProgVar.type       <- ProgVar.types[1]
 
 ### Simulation
 
-for (i in 1:N) {
+for (i in 1:10) {
     
     ##################################### Generating Trial Data ##################
     
@@ -151,33 +151,33 @@ for (i in 1:N) {
       ### No Heterogeneity and Categorical Prognostic Variable
       Heterogeneity.type == "No Heterogeneity" & 
       ProgVar.type == "Categorical" ~  c(1.00,    # Intercept
-                                         2.50,    # Treatment
-                                         1.00,    # Categorical 
-                                         0.00,    # Treatment * Categorical_Predictor
+                                         1.25,    # Treatment
+                                         0.75,    # Categorical 
+                                         0.00,    # Treatment * Categorical Predictor
                                          -0.75,   # Gender
                                          -0.75),  # Age
       ### Heterogeneity and Categorical Prognostic Variable
       Heterogeneity.type == "Heterogeneity" & 
       ProgVar.type == "Categorical" ~  c(1.00,    # Intercept
-                                         2.50,    # Treatment
-                                         1.00,    # Categorical 
-                                         2.00,    # Treatment * Categorical Predictor
+                                         1.25,    # Treatment
+                                         0.75,    # Categorical 
+                                         1.25,    # Treatment * Categorical Predictor
                                          -0.75,   # Gender
                                          -0.75),  # Age
       ### No Heterogeneity and Continous Prognostic Variable
       Heterogeneity.type == "No Heterogeneity" & 
       ProgVar.type == "Continuous" ~   c(1.00,    # Intercept
-                                         2.50,    # Treatment
-                                         1.00,    # Categorical 
-                                         0.00,    # Treatment * Categorical_Predictor
+                                         1.25,    # Treatment
+                                         0.75,    # Continuous 
+                                         0.00,    # Treatment * Continuous Predictor
                                          -0.75,   # Gender
                                          -0.75),  # Age
       ### Heterogeneity and Continuous Prognostic Variable
       Heterogeneity.type == "Heterogeneity" & 
       ProgVar.type == "Continuous" ~   c(1.00,    # Intercept
-                                         2.50,    # Treatment
-                                         1.00,    # Categorical 
-                                         2.00,    # Treatment * Categorical Predictor
+                                         1.25,    # Treatment
+                                         0.75,    # Continuous 
+                                         1.25,    # Treatment * Continuous Predictor
                                          -0.75,   # Gender
                                          -0.75),  # Age
       TRUE ~ NA)
@@ -192,13 +192,13 @@ for (i in 1:N) {
                beta.GeneratingOutcome[4] * Treatment * ProgVar + 
                beta.GeneratingOutcome[5] * Gender +
                beta.GeneratingOutcome[6] * Age,
-             Outcome = rnorm(1, mean = mu, sd = 0.5) - Outcome_BL) |>
+             Outcome = rnorm(1, mean = mu, sd = 0.5)) |> 
       select(-mu)
     
     if(Noise.type == "Noise") {
       Trial_Data <- Trial_Data |>
-        mutate(X1 = rnorm(1, mean = 0, sd = 1) + 0.1 * Outcome_BL + 0.15 * Age,
-               X2 = rnorm(1, mean = 0, sd = 1) + 0.15 * Age + 0.1 * Gender)
+        mutate(X1 = rnorm(1, mean = 0, sd = 1) + 0.35 * Gender,
+               X2 = rnorm(1, mean = 0, sd = 1) + 0.25 * Age)
     }
     
     ###################### Implementing Stochastic Search Variable Selection #####
@@ -414,9 +414,9 @@ for (i in 1:N) {
       X.Risk_Noise <- X.Risk_Noise |>
         as.matrix()
   
-      Risk <- data.frame(Risk = X.Risk_Noise %*% as.matrix(colMeans(beta)))
+      Risk_Noise <- data.frame(Risk = X.Risk_Noise %*% as.matrix(colMeans(beta)))
     
-      Heterogeneity.Data <- bind_cols(Trial_Data, Risk)
+      Heterogeneity.Data_Noise <- bind_cols(Trial_Data, Risk_Noise)
       }
     
     ############################ Fitting the full model ########################
@@ -424,12 +424,12 @@ for (i in 1:N) {
     if(Noise.type == "Noise") {
       
       ### Creating the Design Matrix and Outcome variable for JAGS script (Full Model)
-      X.Heterogeneity_Noise <- Heterogeneity.Data |> 
+      X.Heterogeneity_Noise <- Heterogeneity.Data_Noise |> 
         select(Treatment, Risk) |>
         mutate(Interaction = Treatment * Risk) |>
         as.matrix()
     
-      Y <- Heterogeneity.Data$Outcome
+      Y <- Heterogeneity.Data_Noise$Outcome
     
       ### Data dimensions
       p.Heterogeneity_Noise <- ncol(X.Heterogeneity_Noise)
@@ -520,7 +520,7 @@ for (i in 1:N) {
     print(paste0(i))
 }
 
-write_csv(Outcomes, "~/Bayesian_RiskModel_TEH/Simulation_Study/Output/Continuous_Outcomes/No_Heterogeneity-CatProgVar-Noise")
+#write_csv(Outcomes, "~/Bayesian_RiskModel_TEH/Simulation_Study/Output/Continuous_Outcomes/No_Heterogeneity-CatProgVar-Noise")
 ```
 
 ### 2. Heterogeneity -- Categorical Prognostic Variable -- Noise Variables
@@ -566,33 +566,33 @@ for (i in 1:N) {
       ### No Heterogeneity and Categorical Prognostic Variable
       Heterogeneity.type == "No Heterogeneity" & 
       ProgVar.type == "Categorical" ~  c(1.00,    # Intercept
-                                         2.50,    # Treatment
-                                         1.00,    # Categorical 
-                                         0.00,    # Treatment * Categorical_Predictor
+                                         1.25,    # Treatment
+                                         0.75,    # Categorical 
+                                         1.25,    # Treatment * Categorical Predictor
                                          -0.75,   # Gender
                                          -0.75),  # Age
       ### Heterogeneity and Categorical Prognostic Variable
       Heterogeneity.type == "Heterogeneity" & 
       ProgVar.type == "Categorical" ~  c(1.00,    # Intercept
-                                         2.50,    # Treatment
-                                         1.00,    # Categorical 
-                                         2.00,    # Treatment * Categorical Predictor
+                                         1.25,    # Treatment
+                                         0.75,    # Categorical 
+                                         1.25,    # Treatment * Categorical Predictor
                                          -0.75,   # Gender
                                          -0.75),  # Age
       ### No Heterogeneity and Continous Prognostic Variable
       Heterogeneity.type == "No Heterogeneity" & 
       ProgVar.type == "Continuous" ~   c(1.00,    # Intercept
-                                         2.50,    # Treatment
-                                         1.00,    # Categorical 
-                                         0.00,    # Treatment * Categorical_Predictor
+                                         1.25,    # Treatment
+                                         0.75,    # Continuous 
+                                         0.00,    # Treatment * Continuous Predictor
                                          -0.75,   # Gender
                                          -0.75),  # Age
       ### Heterogeneity and Continuous Prognostic Variable
       Heterogeneity.type == "Heterogeneity" & 
       ProgVar.type == "Continuous" ~   c(1.00,    # Intercept
-                                         2.50,    # Treatment
-                                         1.00,    # Categorical 
-                                         2.00,    # Treatment * Categorical Predictor
+                                         1.25,    # Treatment
+                                         0.75,    # Continuous 
+                                         1.25,    # Treatment * Continuous Predictor
                                          -0.75,   # Gender
                                          -0.75),  # Age
       TRUE ~ NA)
@@ -607,13 +607,13 @@ for (i in 1:N) {
                beta.GeneratingOutcome[4] * Treatment * ProgVar + 
                beta.GeneratingOutcome[5] * Gender +
                beta.GeneratingOutcome[6] * Age,
-             Outcome = rnorm(1, mean = mu, sd = 0.5) - Outcome_BL) |>
+             Outcome = rnorm(1, mean = mu, sd = 0.5)) |> 
       select(-mu)
     
     if(Noise.type == "Noise") {
       Trial_Data <- Trial_Data |>
-        mutate(X1 = rnorm(1, mean = 0, sd = 1) + 0.1 * Outcome_BL + 0.15 * Age,
-               X2 = rnorm(1, mean = 0, sd = 1) + 0.15 * Age + 0.1 * Gender)
+        mutate(X1 = rnorm(1, mean = 0, sd = 1) + 0.35 * Gender,
+               X2 = rnorm(1, mean = 0, sd = 1) + 0.25 * Age)
     }
     
     ###################### Implementing Stochastic Search Variable Selection #####
@@ -935,7 +935,22 @@ for (i in 1:N) {
     print(paste0(i))
 }
 
-write_csv(Outcomes, "~/Bayesian_RiskModel_TEH/Simulation_Study/Output/Continuous_Outcomes/Heterogeneity-CatProgVar-Noise")
+N = 1000
+
+Outcomes |>
+  summarise(
+    Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N,
+    Power.Risk_Noise = sum(rejection.Risk_Noise == "Reject", na.rm = TRUE) / N,
+    Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N,
+    Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N,
+    SSVS.X1 = sum(str_detect(SSVS_results, "X1")),
+    SSVS.X2 = sum(str_detect(SSVS_results, "X2"))
+  )
+
+write_csv(Outcomes, "~/Bayesian_RiskModel_TEH/Simulation_Study/Output/Continuous_Outcomes/Heterogeneity-CatProgVar-Noise.csv")
+
+Outcomes <- read_csv("~/Bayesian_RiskModel_TEH/Simulation_Study/Output/Continuous_Outcomes/Heterogeneity-CatProgVar-Noise.csv")
+
 ```
 
 ### 3. No Heterogeneity -- Continuous Prognostic Variable -- Noise Variables
@@ -981,33 +996,33 @@ for (i in 1:N) {
       ### No Heterogeneity and Categorical Prognostic Variable
       Heterogeneity.type == "No Heterogeneity" & 
       ProgVar.type == "Categorical" ~  c(1.00,    # Intercept
-                                         2.50,    # Treatment
-                                         1.00,    # Categorical 
-                                         0.00,    # Treatment * Categorical_Predictor
+                                         1.25,    # Treatment
+                                         0.75,    # Categorical 
+                                         1.25,    # Treatment * Categorical Predictor
                                          -0.75,   # Gender
                                          -0.75),  # Age
       ### Heterogeneity and Categorical Prognostic Variable
       Heterogeneity.type == "Heterogeneity" & 
       ProgVar.type == "Categorical" ~  c(1.00,    # Intercept
-                                         2.50,    # Treatment
-                                         1.00,    # Categorical 
-                                         2.00,    # Treatment * Categorical Predictor
+                                         1.25,    # Treatment
+                                         0.75,    # Categorical 
+                                         1.25,    # Treatment * Categorical Predictor
                                          -0.75,   # Gender
                                          -0.75),  # Age
       ### No Heterogeneity and Continous Prognostic Variable
       Heterogeneity.type == "No Heterogeneity" & 
       ProgVar.type == "Continuous" ~   c(1.00,    # Intercept
-                                         2.50,    # Treatment
-                                         1.00,    # Categorical 
-                                         0.00,    # Treatment * Categorical_Predictor
+                                         1.25,    # Treatment
+                                         0.75,    # Continuous 
+                                         0.00,    # Treatment * Continuous Predictor
                                          -0.75,   # Gender
                                          -0.75),  # Age
       ### Heterogeneity and Continuous Prognostic Variable
       Heterogeneity.type == "Heterogeneity" & 
       ProgVar.type == "Continuous" ~   c(1.00,    # Intercept
-                                         2.50,    # Treatment
-                                         1.00,    # Categorical 
-                                         2.00,    # Treatment * Categorical Predictor
+                                         1.25,    # Treatment
+                                         0.75,    # Continuous 
+                                         1.25,    # Treatment * Continuous Predictor
                                          -0.75,   # Gender
                                          -0.75),  # Age
       TRUE ~ NA)
@@ -1022,13 +1037,13 @@ for (i in 1:N) {
                beta.GeneratingOutcome[4] * Treatment * ProgVar + 
                beta.GeneratingOutcome[5] * Gender +
                beta.GeneratingOutcome[6] * Age,
-             Outcome = rnorm(1, mean = mu, sd = 0.5) - Outcome_BL) |>
+             Outcome = rnorm(1, mean = mu, sd = 0.5)) |> 
       select(-mu)
     
     if(Noise.type == "Noise") {
       Trial_Data <- Trial_Data |>
-        mutate(X1 = rnorm(1, mean = 0, sd = 1) + 0.1 * Outcome_BL + 0.15 * Age,
-               X2 = rnorm(1, mean = 0, sd = 1) + 0.15 * Age + 0.1 * Gender)
+        mutate(X1 = rnorm(1, mean = 0, sd = 1) + 0.35 * Gender,
+               X2 = rnorm(1, mean = 0, sd = 1) + 0.25 * Age)
     }
     
     ###################### Implementing Stochastic Search Variable Selection #####
@@ -1396,33 +1411,33 @@ for (i in 1:N) {
       ### No Heterogeneity and Categorical Prognostic Variable
       Heterogeneity.type == "No Heterogeneity" & 
       ProgVar.type == "Categorical" ~  c(1.00,    # Intercept
-                                         2.50,    # Treatment
-                                         1.00,    # Categorical 
-                                         0.00,    # Treatment * Categorical_Predictor
+                                         1.25,    # Treatment
+                                         0.75,    # Categorical 
+                                         1.25,    # Treatment * Categorical Predictor
                                          -0.75,   # Gender
                                          -0.75),  # Age
       ### Heterogeneity and Categorical Prognostic Variable
       Heterogeneity.type == "Heterogeneity" & 
       ProgVar.type == "Categorical" ~  c(1.00,    # Intercept
-                                         2.50,    # Treatment
-                                         1.00,    # Categorical 
-                                         2.00,    # Treatment * Categorical Predictor
+                                         1.25,    # Treatment
+                                         0.75,    # Categorical 
+                                         1.25,    # Treatment * Categorical Predictor
                                          -0.75,   # Gender
                                          -0.75),  # Age
       ### No Heterogeneity and Continous Prognostic Variable
       Heterogeneity.type == "No Heterogeneity" & 
       ProgVar.type == "Continuous" ~   c(1.00,    # Intercept
-                                         2.50,    # Treatment
-                                         1.00,    # Categorical 
-                                         0.00,    # Treatment * Categorical_Predictor
+                                         1.25,    # Treatment
+                                         0.75,    # Continuous 
+                                         0.00,    # Treatment * Continuous Predictor
                                          -0.75,   # Gender
                                          -0.75),  # Age
       ### Heterogeneity and Continuous Prognostic Variable
       Heterogeneity.type == "Heterogeneity" & 
       ProgVar.type == "Continuous" ~   c(1.00,    # Intercept
-                                         2.50,    # Treatment
-                                         1.00,    # Categorical 
-                                         2.00,    # Treatment * Categorical Predictor
+                                         1.00,    # Treatment
+                                         0.75,    # Continuous 
+                                         1.00,    # Treatment * Continuous Predictor
                                          -0.75,   # Gender
                                          -0.75),  # Age
       TRUE ~ NA)
@@ -1437,13 +1452,13 @@ for (i in 1:N) {
                beta.GeneratingOutcome[4] * Treatment * ProgVar + 
                beta.GeneratingOutcome[5] * Gender +
                beta.GeneratingOutcome[6] * Age,
-             Outcome = rnorm(1, mean = mu, sd = 0.5) - Outcome_BL) |>
+             Outcome = rnorm(1, mean = mu, sd = 0.5)) |> 
       select(-mu)
     
     if(Noise.type == "Noise") {
       Trial_Data <- Trial_Data |>
-        mutate(X1 = rnorm(1, mean = 0, sd = 1) + 0.1 * Outcome_BL + 0.15 * Age,
-               X2 = rnorm(1, mean = 0, sd = 1) + 0.15 * Age + 0.1 * Gender)
+        mutate(X1 = rnorm(1, mean = 0, sd = 1) + 0.35 * Gender,
+               X2 = rnorm(1, mean = 0, sd = 1) + 0.25 * Age)
     }
     
     ###################### Implementing Stochastic Search Variable Selection #####
