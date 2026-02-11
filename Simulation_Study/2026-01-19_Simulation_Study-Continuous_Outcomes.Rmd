@@ -520,7 +520,7 @@ for (i in 1:N) {
     print(paste0(i))
 }
 
-#write_csv(Outcomes, "~/Bayesian_RiskModel_TEH/Simulation_Study/Output/Continuous_Outcomes/No_Heterogeneity-CatProgVar-Noise")
+write_csv(Outcomes, "~/Bayesian_RiskModel_TEH/Simulation_Study/Output/Continuous_Outcomes/No_Heterogeneity-CatProgVar-Noise.csv")
 ```
 
 ### 2. Heterogeneity -- Categorical Prognostic Variable -- Noise Variables
