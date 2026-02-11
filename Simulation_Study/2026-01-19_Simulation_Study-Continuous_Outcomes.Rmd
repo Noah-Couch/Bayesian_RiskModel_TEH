@@ -119,7 +119,7 @@ ProgVar.type       <- ProgVar.types[1]
 
 ### Simulation
 
-for (i in 1:10) {
+for (i in 1:N) {
     
     ##################################### Generating Trial Data ##################
     
@@ -947,9 +947,9 @@ Outcomes |>
     SSVS.X2 = sum(str_detect(SSVS_results, "X2"))
   )
 
-write_csv(Outcomes, "~/Bayesian_RiskModel_TEH/Simulation_Study/Output/Continuous_Outcomes/Heterogeneity-CatProgVar-Noise.csv")
+#write_csv(Outcomes, "~/Bayesian_RiskModel_TEH/Simulation_Study/Output/Continuous_Outcomes/Heterogeneity-CatProgVar-Noise.csv")
 
-Outcomes <- read_csv("~/Bayesian_RiskModel_TEH/Simulation_Study/Output/Continuous_Outcomes/Heterogeneity-CatProgVar-Noise.csv")
+#Outcomes <- read_csv("~/Bayesian_RiskModel_TEH/Simulation_Study/Output/Continuous_Outcomes/Heterogeneity-CatProgVar-Noise.csv")
 
 ```
 
