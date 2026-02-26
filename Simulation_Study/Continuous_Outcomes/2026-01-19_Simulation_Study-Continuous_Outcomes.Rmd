@@ -15,55 +15,40 @@ library(HDInterval)
 # descretize/continuous risk
 ```
 
+```{r}
+library(parallel)
+library(doParallel)
+library(foreach)
+
+if(detectCores() >= 15) {
+  numCores = 10
+}
+
+cl <- makeCluster(numCores)
+registerDoParallel(cl)
+
+```
+
 ```{r, message=FALSE}
-### JAGS Script for SSVS
-model_string.SSVS <- 
-"model{  
-  # Likelihood
-  for(i in 1:n){
-  Y[i]  ~  dnorm(mu[i], tau2)
-  mu[i] <- beta0 + inprod(beta[],X[i,])
-  }
-  #Priors
-  for(j in 1:p){
-  gamma[j] ~ dnorm(0,0.01)
-  delta[j] ~ dbern(prob)
-  beta[j]  <- gamma[j] * delta[j]
-  }
-  beta0 ~ dnorm(0,0.01)
-  prob  ~ dunif(0,1)
-  tau2 ~ dgamma(0.1,0.1)
-  sigma2 <- pow(tau2,-1)}"
+### JAGS Scripts
+source("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/JAGS_Scripts.R")
 
-model_string.Risk <- "model{
-  # Likelihood
-  for(i in 1:n){
-    Y[i]  ~  dnorm(mu[i], tau2)
-    mu[i] <- beta0 + inprod(beta[],X[i,])
-  }
-  #Priors
-   for(j in 1:p){
-   beta[j] ~ dnorm(0,0.01)
-   }
-   beta0 ~ dnorm(0,0.01)
-   tau2 ~ dgamma(0.1,0.1)
-   sigma2 <- pow(tau2,-1)
- }"
 
-model_string.Heterogeneity <- "model{
-  # Likelihood
-  for(i in 1:n){
-    Y[i] ~ dnorm(mu[i], tau2)
-    mu[i] <- beta0 + inprod(beta[],X[i,])
-  }
-  #Priors
-   for(j in 1:p){
-      beta[j] ~ dnorm(0,0.01)
-   }
-   beta0 ~ dnorm(0,0.01)
-   tau2 ~ dgamma(0.1,0.1)
-   sigma2 <- pow(tau2,-1)
- }"
+### Generating baseline characteristics
+source("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-Generating_Data.R")
+
+
+### Outcome Generation
+source("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-Calculating_Outcomes.R")
+
+### Stochastic Search Variable Selection
+source("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-SSVS.R")
+
+### Risk Calculations
+source("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-Risk_Calculations.R")
+
+
+
 ```
 
 ```{r}
@@ -134,143 +119,19 @@ ProgVar.type       <- ProgVar.types[1]
 
 for (i in 1:N) {
     
-    ##################################### Generating Trial Data ##################
+    Simulated_Data <- generating_data(172, PID, Treatment, ProgVar.type)
     
-    ### Gender
-    Gender <- rbinom(200, size = 1, prob = 0.5)
+    Trial_Data <- calculating_Outcomes(Simulated_Data, Heterogeneity.type, ProgVar.type, Noise.type)
     
-    ### Age
-    Age <- rnorm(200, mean = 0, sd = 1)
+    delta.SSVS <- SSVS_jags(Trial_Data, Burn_in, Iterations, model_string.SSVS = model_string.SSVS)
     
-    ### Baseline Measurement of Outcome (Y_0)
-    Outcome_BL <- rnorm(200, mean = 0, sd = 1)
-    
-    ### Prognostic Variable (Categorical or Continuous)
-    ProgVar <- case_when(ProgVar.type == "Categorical" ~ rbinom(200, size = 1, prob = 0.5),
-                         ProgVar.type == "Continuous"  ~ rnorm(200, mean = 0, sd = 1))
-    
-    
-    
-    ################ Combining variables to create simulated trial data ##########
-    
-    Simulated_Data <- tibble(PID, Treatment, Gender, Age, Outcome_BL, ProgVar)
-    
-    
-    
-    ################## Generating outcomes #######################################
-    
-    ### Coefficients
-    beta.GeneratingOutcome <- case_when(
-      ### No Heterogeneity and Categorical Prognostic Variable
-      Heterogeneity.type == "No Heterogeneity" & 
-      ProgVar.type == "Categorical" ~  c(1.00,    # Intercept
-                                         1.25,    # Treatment
-                                         0.75,    # Categorical 
-                                         0.00,    # Treatment * Categorical Predictor
-                                         -0.75,   # Gender
-                                         -0.75),  # Age
-      ### Heterogeneity and Categorical Prognostic Variable
-      Heterogeneity.type == "Heterogeneity" & 
-      ProgVar.type == "Categorical" ~  c(1.00,    # Intercept
-                                         1.25,    # Treatment
-                                         0.75,    # Categorical 
-                                         1.25,    # Treatment * Categorical Predictor
-                                         -0.75,   # Gender
-                                         -0.75),  # Age
-      ### No Heterogeneity and Continous Prognostic Variable
-      Heterogeneity.type == "No Heterogeneity" & 
-      ProgVar.type == "Continuous" ~   c(1.00,    # Intercept
-                                         1.25,    # Treatment
-                                         0.75,    # Continuous 
-                                         0.00,    # Treatment * Continuous Predictor
-                                         -0.75,   # Gender
-                                         -0.75),  # Age
-      ### Heterogeneity and Continuous Prognostic Variable
-      Heterogeneity.type == "Heterogeneity" & 
-      ProgVar.type == "Continuous" ~   c(1.00,    # Intercept
-                                         1.25,    # Treatment
-                                         0.75,    # Continuous 
-                                         1.25,    # Treatment * Continuous Predictor
-                                         -0.75,   # Gender
-                                         -0.75),  # Age
-      TRUE ~ NA)
-    
-    ### Calculating Trial Outcome
-    Trial_Data <- Simulated_Data |>
-      rowwise() |>
-      mutate(mu = Outcome_BL +
-               beta.GeneratingOutcome[1] + 
-               beta.GeneratingOutcome[2] * Treatment + 
-               beta.GeneratingOutcome[3] * ProgVar + 
-               beta.GeneratingOutcome[4] * Treatment * ProgVar + 
-               beta.GeneratingOutcome[5] * Gender +
-               beta.GeneratingOutcome[6] * Age,
-             Outcome = rnorm(1, mean = mu, sd = 0.5)) |> 
-      select(-mu)
-    
-    if(Noise.type == "Noise") {
-      Trial_Data <- Trial_Data |>
-        mutate(X1 = rnorm(1, mean = 0, sd = 1) + 0.35 * Gender,
-               X2 = rnorm(1, mean = 0, sd = 1) + 0.25 * Age)
-    }
-    
-    ###################### Implementing Stochastic Search Variable Selection #####
-    
-    ### Creating the Design Matrix and Outcome variable for JAGS script (SSVS)
-    ### Ordering of variables:
-    ###     - Gender
-    ###     - Age
-    ###     - Outcome_BL
-    ###     - Categorical Predictor
-    X.SSVS <- Trial_Data |> 
-      select(-c(PID, Treatment, Outcome)) |> 
-      as.matrix()
-    
-    Y <- Trial_Data$Outcome - Trial_Data$Outcome_BL
-    
-    ### Data dimensions
-    p.SSVS <- ncol(X.SSVS)
-    n.SSVS <- nrow(X.SSVS)
-    
-    ### List of initial values for JAGS samples
-    initial_values.SSVS <- list(Y = Y,
-                                n = n.SSVS,
-                                X = X.SSVS,
-                                p = p.SSVS)
-    
-    ### Initializing model
-    model.SSVS <- jags.model(textConnection(model_string.SSVS), 
-                       data = initial_values.SSVS,
-                       n.chains=3)
-    
-    ### Running a 10,000 sample burn in
-    update(model.SSVS, Burn_in)
-    
-    ### Sampling from the posterior
-    JAGS_samps.SSVS  <- coda.samples(model.SSVS, 
-                                     variable.names=c("delta"), 
-                                     n.iter= 10000)
-    
-    ### Combining the samples of all three chains
-    Samps.SSVS <- JAGS_samps.SSVS[[1]] |>
-      rbind(JAGS_samps.SSVS[[2]], 
-            JAGS_samps.SSVS[[3]])
-    
-    ### Pulling betas
-    #beta0.SSVS <- Samps[,(p+1)]
-    #beta.SSVS <- Samps[,1:p]
-    
-    ### Pulling deltas
-    delta.SSVS <- Samps.SSVS #[,1:p.SSVS + p.SSVS + 1]
-    
-    ### Defining the column names for which covariates each beta and delta represent
-    #colnames(beta.SSVS) <- colnames(X.SSVS)
-    colnames(delta.SSVS) <- colnames(X.SSVS) 
-    
-    ### Pulling the coefficients to include based on SSVS
-    included <- delta.SSVS |>
+    ### Pulling information on posterior selection probabilities 
+    selection_prob <- delta.SSVS |>
       as.data.frame() |>
-      count(across(everything()), sort = TRUE) |>
+      count(across(everything()), sort = TRUE)
+    
+    ### Pulling the coefficients selected by SSVS
+    included <- selection_prob |>
       slice(1) |>
       select(-n) |>
       pivot_longer(everything(),
@@ -282,55 +143,10 @@ for (i in 1:N) {
     ### Skipping if no variables were to be included
     if (length(included) == 0) next
     
-    ################################# Finding Risk Model #########################
+    Risk <- Risk_jags(Trial_Data, included, Burn_in, Iterations, model_string.Risk = model_string.Risk)
     
-    ### Creating the Design Matrix and Outcome variable for JAGS script (Risk Model)
-    X.Risk <- X.SSVS |>
-      as.data.frame() |>
-      select(any_of(included))
-    
-    ### Data dimensions
-    p.Risk <- ncol(X.Risk)
-    n.Risk <- nrow(X.Risk)
-    
-    ### List of initial values for JAGS samples
-    initial_values.Risk <- list(Y = Y,
-                                n = n.Risk,
-                                X = X.Risk,
-                                p = p.Risk)
-    
-    ### Initializing model
-    Risk.Mod <- jags.model(textConnection(model_string.Risk), 
-                           data = initial_values.Risk,
-                           n.chains=3)
-    
-    ### Running a 10,000 sample burn in
-    update(Risk.Mod, Burn_in)
-    
-    ### Sampling from the posterior
-    JAGS_samps.Risk  <- coda.samples(Risk.Mod, 
-                                     variable.names=c("beta0", "beta"), 
-                                     n.iter= Iterations)
-    
-    ### Combining the samples of all three chains
-    Samps.Risk <- JAGS_samps.Risk[[1]] |>
-      rbind(JAGS_samps.Risk[[2]], 
-            JAGS_samps.Risk[[3]])
-    
-    ### Pulling betas
-    beta0 <- Samps.Risk[,(p.Risk+1)]
-    beta <- Samps.Risk[,1:p.Risk] |> as.data.frame()
-    
-    colnames(beta) <- colnames(X.Risk)
-    
-    
-    
-    ##################################### Calculating each participant risk ######
-    
-    X.Risk <- X.Risk |>
-      as.matrix()
   
-    Risk <- data.frame(Risk = X.Risk %*% as.matrix(colMeans(beta)))
+    
     
     Heterogeneity.Data <- bind_cols(Trial_Data, Risk)
     
