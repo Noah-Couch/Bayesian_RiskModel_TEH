@@ -7,7 +7,7 @@ calculating_Outcomes <- function(Simulated_Data, Heterogeneity.type, ProgVar.typ
 
   beta.GeneratingOutcome <- case_when(
     ### No Heterogeneity and Categorical Prognostic Variable
-    Heterogeneity.type == "No Heterogeneity" & 
+    Heterogeneity.type == "No_Heterogeneity" & 
       ProgVar.type == "Categorical" ~  c(1.00,    # Intercept
                                          1.25,    # Treatment
                                          0.75,    # Categorical 
@@ -23,7 +23,7 @@ calculating_Outcomes <- function(Simulated_Data, Heterogeneity.type, ProgVar.typ
                                          -0.75,   # Gender
                                          -0.75),  # Age
     ### No Heterogeneity and Continous Prognostic Variable
-    Heterogeneity.type == "No Heterogeneity" & 
+    Heterogeneity.type == "No_Heterogeneity" & 
       ProgVar.type == "Continuous" ~   c(1.00,    # Intercept
                                          1.25,    # Treatment
                                          0.75,    # Continuous 

@@ -20,8 +20,8 @@ library(parallel)
 library(doParallel)
 library(foreach)
 
-if(detectCores() >= 15) {
-  numCores = 10
+if(detectCores() >= 30) {
+  numCores = 25
 }
 
 cl <- makeCluster(numCores)
@@ -49,7 +49,7 @@ source("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Simulation_Study/Co
 ```
 
 ```{r}
-N_iter  <- 10 # Number of iterations
+N_iter  <-500 # Number of iterations
 N_trial <- 200
 
 Iterations <- 2500
@@ -57,8 +57,8 @@ Burn_in <- 2500
 
 ### Each Situation we wish to simulate through
 ProgVar.types <- c("Categorical", "Continuous") 
-Heterogeneity.types <- c("No Heterogeneity", "Heterogeneity")
-Noise.types <- c("Noise", "No Noise")
+Heterogeneity.types <- c("No_Heterogeneity", "Heterogeneity")
+Noise.types <- c("Noise", "No_Noise")
 
 ### Generated trials
 Sim_Trials <- list()
@@ -150,83 +150,17 @@ Results |>
     SSVS.X1 = sum(str_detect(SSVS_results, "X1")),
     SSVS.X2 = sum(str_detect(SSVS_results, "X2"))
   )
+
+write_csv(Results, 
+          paste0("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/",
+                 Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, ".csv"))
 ```
 
 
 
-```{r}
-### Setting Simulation Parameters
 
 
 
-### Simulation
-
-for (i in 1:N) {
-    
-    Simulated_Data <- generating_data(172, PID, Treatment, ProgVar.type)
-    
-    Trial_Data <- calculating_Outcomes(Simulated_Data, Heterogeneity.type, ProgVar.type, Noise.type)
-    
-    
-    Heterogeneity <- Risk_Heterogeneity(Trial_Data, Burn_in, Iterations, 
-                                        SSVS_script = model_string.SSVS,
-                                        Risk_script = model_string.Risk, 
-                                        Heterogeneity_script = model_string.Heterogeneity) 
-    
-    ####################### Fitting the noisy risk model #######################
-
-    
-  
-    ############# Using interaction terms to evaluate Heterogeneity ############
-
-    mod.PgV <- lm(Outcome ~ Treatment * ProgVar + Age + Gender + Outcome_BL,
-                  data = Trial_Data)
-
-    pval.PgV <- summary(mod.PgV)$coefficients[7,4]
-    
-    ############ Using SDIR and F-test to evaluate heterogeneity ###############
-    
-    var.Trt  <- var(Trial_Data$Outcome[Treatment == 1]) 
-    var.Ctrl <- var(Trial_Data$Outcome[Treatment == 0]) 
-    
-    sdir <- sqrt( abs( var.Trt - var.Ctrl ) )
-    
-    sdir.pval <- var.test(Trial_Data$Outcome[Treatment == 1],
-                          Trial_Data$Outcome[Treatment == 0],
-                          ratio = 1,
-                          alternative = "greater",
-                          conf.level  = 0.95)$p.value
-  
-    ############################## Storing the results of simulation #############
-    
-    data.frame(rejection.Risk = if_else((HDI[1] < 0 & 0 < HDI[2]), 
-                                                        "Accept", 
-                                                        "Reject"),
-                               Lower.CI = HDI[1],
-                               Upper.CI = HDI[2],
-                               SSVS_results = paste(included, collapse = ", " ),
-                               
-                               rejection.Risk_Noise = if_else(
-                                 Noise.type == "Noise",
-                                 if_else(HDI_Noise[1] < 0 & 0 < HDI_Noise[2], 
-                                         "Accept", "Reject"), 
-                                 NA),
-                               
-                               rejection.interaction = if_else(pval.PgV < 0.05,
-                                                               "Reject",
-                                                               "Accept"),
-                               
-                               rejection.SDIR = if_else(sdir.pval <= 0.05, 
-                                                        "Reject",
-                                                        "Accept"),
-                               SDIR = sdir
-                               )
-}
-
-#write_csv(Outcomes, "~/Bayesian_RiskModel_TEH/Simulation_Study/Output/Continuous_Outcomes/No_Heterogeneity-CatProgVar-Noise.csv")
-
-
-```
 
 ### 2. Heterogeneity -- Categorical Prognostic Variable -- Noise Variables
 
