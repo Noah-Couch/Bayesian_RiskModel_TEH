@@ -67,9 +67,9 @@ model_string.Heterogeneity <- "model{
 ```
 
 ```{r}
-N <- 1000 # Number of iterations
+N <- 10 # Number of iterations
 
-Iterations <- 25000
+Iterations <- 2500
 Burn_in <- 2500
 
 ### Rejecting the H_0 (Heterogeneity is present)
@@ -85,6 +85,19 @@ Outcomes <- data.frame(rejection.Risk = rep(NA, N),
 
 ### Outcome of multiple simulation studies
 Sims <- list()
+
+### Things to add to output --------------------------------------------
+### selection probs of models (individual and model) - Table x 2
+### point estimate of beta3 heterogeneity - Value
+### Trt Eff w/o intx (beta1) and Trt Eff w/ intx (beta1, 2, 3)
+###     - Identify
+### prediction error sum(y - y hat)^2/n noise + optimized
+### CI's for risk and intx model (freq)
+###     TRT Effect
+### TRT0 <- beta1 
+### TRT1 <- beta1 + beta3 RA for binary
+### TRT0 <- beta1 + beta3 (x - xbar - 1.5sd) or beta3 (X_Q25)
+### TRT1 <- beta1 + beta3 (x - xbar + 1.5sd) or beta3 (X_Q75)
 ```
 
 ### 
@@ -520,7 +533,9 @@ for (i in 1:N) {
     print(paste0(i))
 }
 
-write_csv(Outcomes, "~/Bayesian_RiskModel_TEH/Simulation_Study/Output/Continuous_Outcomes/No_Heterogeneity-CatProgVar-Noise.csv")
+#write_csv(Outcomes, "~/Bayesian_RiskModel_TEH/Simulation_Study/Output/Continuous_Outcomes/No_Heterogeneity-CatProgVar-Noise.csv")
+
+
 ```
 
 ### 2. Heterogeneity -- Categorical Prognostic Variable -- Noise Variables
@@ -651,7 +666,7 @@ for (i in 1:N) {
     ### Sampling from the posterior
     JAGS_samps.SSVS  <- coda.samples(model.SSVS, 
                                      variable.names=c("delta"), 
-                                     n.iter= 10000)
+                                     n.iter= Iterations)
     
     ### Combining the samples of all three chains
     Samps.SSVS <- JAGS_samps.SSVS[[1]] |>
@@ -935,7 +950,7 @@ for (i in 1:N) {
     print(paste0(i))
 }
 
-N = 1000
+N = 10
 
 Outcomes |>
   summarise(

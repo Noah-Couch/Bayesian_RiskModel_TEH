@@ -1,0 +1,336 @@
+---
+title: "Data Analysis -- "
+author: "Noah Couch"
+date: "2026-02-17"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(rjags)
+library(ggplot2)
+library(kableExtra)
+library(HDInterval)
+
+Burn_in <- 5000
+Iterations <- 10000
+
+
+### 
+
+```
+
+### Reading Data
+
+```{r}
+VARIA_Data <- read.csv("~/Bayesian_RiskModel_TEH/Data_Analysis/Data/VARIA_Study.csv") 
+
+
+#### Add different variances for 
+
+```
+
+### Cleaning Data 
+
+```{r}
+VARIA_Data_Clean <- VARIA_Data |>
+  mutate(Study_ID = case_when(Study == "ADAPT"    ~ 1,
+                              Study == "APPLE"    ~ 2,
+                              Study == "CLIP"     ~ 3,
+                              Study == "IDEA"     ~ 4,
+                              Study == "IM-FIT"   ~ 5,
+                              Study == "INFINITE" ~ 6,
+                              Study == "MEDIFAST" ~ 7,
+                              Study == "SECRET"   ~ 8,
+                              TRUE ~ NA),
+         Trt_WL = wl,
+         Exercise = ex,
+         Gender = case_when(gender == "Female" ~ 0,
+                            gender == "Male" ~ 1,
+                            TRUE ~ NA),
+         Age = age,
+         Weight_BL = base_wt_kg ,
+         #BMI_BL = bmi_base,
+         GaitSpeed_BL = gaitspeed_base,
+         GaitSpeed_Source = case_when(gs_source_base == "400 M Fast Walk" ~ 0,
+                                      gs_source_base == "6 Min Walk" ~ 1,
+                                      TRUE ~ NA),
+         Gaitspeed_ch = gaitspeed_mo6 - gaitspeed_base) |>
+  select(Study_ID, 
+         Gaitspeed_ch, 
+         Trt_WL, 
+         Exercise, 
+         Gender, 
+         Age, 
+         Weight_BL,
+         #BMI_BL,
+         GaitSpeed_BL,
+         GaitSpeed_Source) |>
+  drop_na()
+```
+
+### Defining Initial Variables
+
+```{r}
+### Study ID
+Study <- VARIA_Data_Clean$Study_ID
+
+
+### Possible Explanatory Variables
+X.SSVS <- VARIA_Data_Clean |>
+  select(Exercise, Gender, Age, Weight_BL, GaitSpeed_BL, GaitSpeed_Source) |>
+  #BMI_BL
+  as.matrix()
+
+### Outcome
+Y <- VARIA_Data_Clean$Gaitspeed_ch
+
+### Data dimensions
+p.SSVS  <- ncol(X.SSVS)
+n.SSVS  <- nrow(X.SSVS)
+n.study <- max(Study)
+    
+### List of initial values for JAGS samples
+initial_values.SSVS <- list(study = Study,
+                            X = X.SSVS,
+                            Y = Y,
+                            n = n.SSVS,
+                            n.study = n.study,
+                            p = p.SSVS)
+```
+
+### Selecting variables for Risk Model
+
+```{r}
+model_string.SSVS <- 
+"model{  
+  # Likelihood
+  for(i in 1:n){
+  Y[i]  ~  dnorm(mu[i], tau2)
+  mu[i] <- beta0[study[i]] + inprod(beta[],X[i,])
+  }
+  
+  #Priors
+  for(j in 1:p){
+  gamma[j] ~ dnorm(0,0.1)
+  delta[j] ~ dbern(prob)
+  beta[j]  <- gamma[j] * delta[j]
+  }
+  
+  # Priors, beta0
+  for(k in 1:n.study){
+  beta0[k] ~ dnorm(0,0.1)
+  }
+  
+  prob  ~ dunif(0,1)
+  tau2 ~ dgamma(0.1,0.1)
+  sigma2 <- pow(tau2,-1)}"
+
+
+### Initializing model
+model.SSVS <- jags.model(textConnection(model_string.SSVS), 
+                   data = initial_values.SSVS,
+                   n.chains=3)
+    
+### Running a 10,000 sample burn in
+update(model.SSVS, Burn_in)
+    
+### Sampling from the posterior
+JAGS_samps.SSVS  <- coda.samples(model.SSVS, 
+                                 variable.names=c("delta"), 
+                                 n.iter= Iterations)
+
+### Combining the samples of all three chains
+Samps.SSVS <- JAGS_samps.SSVS[[1]] |>
+  rbind(JAGS_samps.SSVS[[2]], 
+        JAGS_samps.SSVS[[3]])
+    
+### Pulling betas
+#beta0.SSVS <- Samps[,(p+1)]
+#beta.SSVS <- Samps[,1:p]
+
+### Pulling deltas
+delta.SSVS <- Samps.SSVS #[,1:p.SSVS + p.SSVS + 1]
+    
+### Defining the column names for which covariates each beta and delta represent
+#colnames(beta.SSVS) <- colnames(X.SSVS)
+colnames(delta.SSVS) <- colnames(X.SSVS) 
+
+### Pulling the coefficients to include based on SSVS
+included <- delta.SSVS |>
+  as.data.frame() |>
+  count(across(everything()), sort = TRUE) |>
+  slice(1) |>
+  select(-n) |>
+  pivot_longer(everything(),
+               names_to = "coef",
+               values_to = "value") |>
+  filter(value == 1) |>
+  pull(coef)
+```
+
+### Predicting Risk
+
+```{r}
+### Creating the Design Matrix and Outcome variable for JAGS script (Risk Model)
+X.Risk <- X.SSVS |>
+  as.data.frame() |>
+  select(any_of(included))
+    
+### Data dimensions
+p.Risk <- ncol(X.Risk)
+n.Risk <- nrow(X.Risk)
+    
+### List of initial values for JAGS samples
+initial_values.Risk <- list(Y = Y,
+                            study = Study,
+                            n = n.Risk,
+                            n.study = n.study,
+                            X = X.Risk,
+                            p = p.Risk)
+
+### Risk Model String
+model_string.Risk <- 
+"model{  
+  # Likelihood
+  for(i in 1:n){
+  Y[i]  ~  dnorm(mu[i], tau2)
+  mu[i] <- beta0[study[i]] + inprod(beta[],X[i,])
+  }
+  
+  #Priors
+  for(j in 1:p){
+  beta[j] ~ dnorm(0,0.1)
+  }
+  
+  # Priors, beta0
+  for(k in 1:n.study){
+  beta0[k] ~ dnorm(0,0.1)
+  }
+  
+  tau2 ~ dgamma(0.1,0.1)
+  sigma2 <- pow(tau2,-1)}"
+    
+### Initializing model
+Risk.Mod <- jags.model(textConnection(model_string.Risk), 
+                       data = initial_values.Risk,
+                       n.chains=3)
+    
+### Running a 10,000 sample burn in
+update(Risk.Mod, 5000)
+
+### Sampling from the posterior
+JAGS_samps.Risk  <- coda.samples(Risk.Mod, 
+                                 variable.names=c("beta0", "beta"), 
+                                 n.iter= 10000)
+
+Converge.Risk <- if_else(all(gelman.diag(JAGS_samps.Risk)$psrf[,2] < 1.1),
+                             "Converged", "Not Converged")
+    
+### Combining the samples of all three chains
+Samps.Risk <- JAGS_samps.Risk[[1]] |>
+  rbind(JAGS_samps.Risk[[2]], 
+        JAGS_samps.Risk[[3]])
+
+### Pulling betas
+beta0 <- colMeans(Samps.Risk[,(p.Risk+1):(p.Risk+8)])
+beta <- Samps.Risk[,1:p.Risk] |> as.data.frame()
+    
+colnames(beta) <- colnames(X.Risk)
+    
+    
+    
+##################################### Calculating each participant risk ######
+    
+X.Risk <- X.Risk |>
+  as.matrix()
+  
+Risk <- VARIA_Data_Clean |>
+  select(c(Study_ID, any_of(included))) |>
+  mutate(TempRisk = as.matrix(select(VARIA_Data_Clean, any_of(included))) %*% as.matrix(colMeans(beta))
+         ) |>
+  rowwise() |>
+  mutate(Risk = beta0[Study_ID] + TempRisk) |>
+  select(Risk)
+    
+Heterogeneity.Data <- bind_cols(VARIA_Data_Clean, Risk)
+```
+
+### Evaluating Heterogeneity
+
+```{r}
+X.Heterogeneity <- Heterogeneity.Data |> 
+  select(Trt_WL, Risk) |>
+  mutate(Interaction = Trt_WL * Risk) |>
+  as.matrix()
+    
+Y <- Heterogeneity.Data$Gaitspeed_ch
+
+Study <- Heterogeneity.Data$Study_ID
+    
+### Data dimensions
+p.Heterogeneity <- ncol(X.Heterogeneity)
+n.Heterogeneity <- nrow(X.Heterogeneity)
+n.study <- max(Study)
+    
+### List of initial values for JAGS samples
+initial_values.Heterogeneity <- list(Y = Y,
+                                     n = n.Heterogeneity,
+                                     n.study = n.study,
+                                     X = X.Heterogeneity,
+                                     study = Study,
+                                     p = p.Heterogeneity)
+
+model_string.Heterogeneity <- "model{
+  # Likelihood
+  for(i in 1:n){
+    Y[i] ~ dnorm(mu[i], tau2)
+    mu[i] <- beta0[study[i]] + inprod(beta[],X[i,])
+  }
+  #Priors
+   for(j in 1:p){
+      beta[j] ~ dnorm(0,0.01)
+   }
+   # Priors, beta0
+   for(k in 1:n.study){
+   beta0[k] ~ dnorm(0,0.01)
+   }
+   tau2 ~ dgamma(0.1,0.1)
+   sigma2 <- pow(tau2,-1)
+ }"
+  
+    ### Initializing model
+Heterogeneity <- jags.model(textConnection(model_string.Heterogeneity), 
+                            data = initial_values.Heterogeneity,
+                            n.chains=3)
+    
+### Running a 10,000 sample burn in
+update(Heterogeneity, 2500)
+    
+### Sampling from the posterior
+JAGS_samps.Heterogeneity  <- coda.samples(Heterogeneity,
+                                          variable.names=c("beta0", "beta"), 
+                                          n.iter= 5000)
+  
+  
+  
+  
+### Using Highest posterior density intervals to evaluate Heterogeneity ######
+    
+Samps.Heterogeneity <- JAGS_samps.Heterogeneity[[1]] |>
+  rbind(JAGS_samps.Heterogeneity[[2]], 
+        JAGS_samps.Heterogeneity[[3]])
+    
+HDI <- hdi(Samps.Heterogeneity)
+```
+
+
+
+
+
+
+
+
+
+
+
