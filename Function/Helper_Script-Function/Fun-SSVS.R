@@ -9,7 +9,7 @@ SSVS_jags <- function(Trial_Data, Burn_in, Iterations, model_string.SSVS) {
   
   ### Checking for Columns -----------------------------------------------------
   
-  col_check <- c("PID", "Treatment", "Outcome")
+  col_check <- c("PID", "Treatment", "Outcome", "Outcome_BL")
   if(all(col_check %in% colnames(Trial_Data))){} else{
     print("Trial Data should include 'PID', 'Treatment', and 'Outcome'")
     break
@@ -50,7 +50,7 @@ SSVS_jags <- function(Trial_Data, Burn_in, Iterations, model_string.SSVS) {
   
   model <- jags.model(textConnection(model_string.SSVS),
                       data = initial_values,
-                      n.chains=3)
+                      n.chains=4)
   
   
   ### Sampling from posterior --------------------------------------------------
@@ -61,10 +61,10 @@ SSVS_jags <- function(Trial_Data, Burn_in, Iterations, model_string.SSVS) {
                               n.iter= Iterations)
   
   
-  ### Returning posterior selection numbers ------------------------------------
+  ### Returning summary of posterior samples -----------------------------------
   
   ### Combining the samples of all three chains
-  Samps <- JAGS_samps[[1]] |> rbind(JAGS_samps[[2]], JAGS_samps[[3]])
+  Samps <- JAGS_samps[[1]] |> rbind(JAGS_samps[[2]], JAGS_samps[[3]], JAGS_samps[[4]])
   
   ### Pulling deltas
   delta <- Samps
@@ -72,21 +72,27 @@ SSVS_jags <- function(Trial_Data, Burn_in, Iterations, model_string.SSVS) {
   ### Defining the column names for which covariates each beta and delta represent
   colnames(delta) <- colnames(X)
   
-  return(delta)
+  
+  Individual_Variable_Selections <- t(sprintf("%.4f", colSums(delta)/(Iterations*4))) |> as.data.frame()
+  colnames(Individual_Variable_Selections) <- colnames(delta)
+  
+  Variable_Selections <- delta |>
+    as.data.frame() |>
+    count(across(everything()), sort = TRUE)
+  
+  included <- Variable_Selections |>
+    slice(1) |>
+    select(-n) |>
+    pivot_longer(everything(),
+                 names_to = "coef",
+                 values_to = "value") |>
+    filter(value == 1) |>
+    pull(coef)
+  
+  
+  
+  return(list(Selection_Probability = Individual_Variable_Selections,
+              Variable_Selections = Variable_Selections,
+              included = included))
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-### Sampling from the posterior

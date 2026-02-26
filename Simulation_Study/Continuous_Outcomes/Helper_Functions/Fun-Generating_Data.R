@@ -1,5 +1,5 @@
 
-############################ Generating Trial Data #############################
+##################### Generating Baseline Characteristics ######################
 
 generating_data <- function(seed, PID, Treatment, ProgVar.type) {
   

@@ -6,6 +6,15 @@ require(rjags)
 Risk_jags <- function(Trial_Data, included, Burn_in, Iterations,
                       model_string.Risk, Optimized = TRUE) {
   
+  ### Checking for Columns -----------------------------------------------------
+  
+  col_check <- c("PID", "Treatment", "Outcome", "Outcome_BL")
+  if(all(col_check %in% colnames(Trial_Data))){} else{
+    print("Trial Data should include 'PID', 'Treatment', and 'Outcome'")
+    break
+  }
+  
+  
   ### Checking for optimized risk or noisy risk --------------------------------
   
   if(Optimized == FALSE) {
@@ -40,7 +49,7 @@ Risk_jags <- function(Trial_Data, included, Burn_in, Iterations,
   
   model <- jags.model(textConnection(model_string.Risk),
                       data = initial_values,
-                      n.chains=3)
+                      n.chains=4)
   
   
   ### Sampling from posterior --------------------------------------------------
@@ -66,7 +75,14 @@ Risk_jags <- function(Trial_Data, included, Burn_in, Iterations,
   
   Risk <- data.frame(Risk = mean(beta0) + X %*% as.matrix(colMeans(beta)))
   
-  return(Risk)
+  Post_Means <- data.frame(t(colMeans(Samps)))
+  colnames(Post_Means) <- c(paste0("beta_", colnames(X)), "beta0")
+  
+  R_hat <- gelman.diag(JAGS_samps)
+  
+  return(list(Risk = Risk,
+              Posterior_Means = Post_Means,
+              R_hat = R_hat))
 }
 
 
