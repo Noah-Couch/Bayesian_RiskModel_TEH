@@ -4,6 +4,11 @@
 
 Clean_Output <- function(Trial_Data, Heterogeneity, Heterogeneity_Noise, Alternative_Methods, N_trial) {
   
+  if(any(Heterogeneity$Heterogeneity$Posterior_Means == "N/A")){
+    return("N/A")
+  }
+  
+  
   ### Defining Heterogeneity Outcomes ------------------------------------------
   
   ### From the heterogeneity model

@@ -89,7 +89,11 @@ SSVS_jags <- function(Trial_Data, Burn_in, Iterations, model_string.SSVS) {
     filter(value == 1) |>
     pull(coef)
   
-  
+  if(length(included) == 0){
+    return(list(Selection_Probability = "N/A",
+                Variable_Selections = "N/A",
+                included = "N/A"))
+  }
   
   return(list(Selection_Probability = Individual_Variable_Selections,
               Variable_Selections = Variable_Selections,

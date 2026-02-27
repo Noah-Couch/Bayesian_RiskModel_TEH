@@ -49,7 +49,7 @@ source("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Simulation_Study/Co
 ```
 
 ```{r}
-N_iter  <-500 # Number of iterations
+N_iter  <-1000 # Number of iterations
 N_trial <- 200
 
 Iterations <- 2500
@@ -128,14 +128,23 @@ Heterogeneity_List <- foreach(i = 1:N_iter, .packages = required_packages) %dopa
   Output <- Clean_Output(Trial_Data, Heterogeneity, Heterogeneity_Noise, Alternative_Methods, N_trial)
     
   list(Output = Output,
-       Selection_Probability = Heterogeneity$Selection_Probability,
-       Variable_Selections = Heterogeneity$Variable_Selections)
+       Selection_Probability = if(is.null(Heterogeneity$Selection_Probability)) {"N/A"}
+                               else{Heterogeneity$Selection_Probability},
+       Variable_Selections = if(is.null(Heterogeneity$Variable_Selections)) {"N/A"}
+                               else{Heterogeneity$Variable_Selections},
+       R_hat_Heterogeneity = if(is.null(Heterogeneity$Heterogeneity$R_hat )) {"N/A"}
+                               else{Heterogeneity$Heterogeneity$R_hat},
+       R_hat_Risk = if(is.null(Heterogeneity$Risk$Risk$R_hat)) {"N/A"}
+                               else{Heterogeneity$Risk$Risk$R_hat})
 }
 
 ### Storing results seperately
 Results <- do.call(rbind, lapply(Heterogeneity_List, `[[`, "Output"))
 Selection_Probability <- lapply(Heterogeneity_List, `[[`, "Selection_Probability")
 Variable_Selections <- lapply(Heterogeneity_List, `[[`, "Variable_Selections")
+R_hat_Heterogeneity <- lapply(Heterogeneity_List, `[[`, "R_hat_Heterogeneity")
+R_hat_Risk <- lapply(Heterogeneity_List, `[[`, "R_hat_Risk")
+
 
 ### End runtime tracking
 end_time <- Sys.time()
@@ -151,1305 +160,122 @@ Results |>
     SSVS.X2 = sum(str_detect(SSVS_results, "X2"))
   )
 
-write_csv(Results, 
-          paste0("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/",
-                 Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, ".csv"))
+path <- paste0("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/",
+               "TrtEff0.50",
+               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, ".csv")
+
+write_csv(Results, path)
+
+write_rds(Selection_Probability, paste0("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/2-Selection_Probability/",
+               "TrtEff0.50",
+               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-SelectProb.rds"))
+
+write_rds(R_hat_Heterogeneity, paste0("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/1-Diagnostics/",
+               "TrtEff0.50",
+               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-R_hat_Heterogeneity.rds"))
+
+write_rds(Variable_Selections, paste0("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/3-Variable_Selection/",
+               "TrtEff0.50",
+               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-Variable_Selections.rds"))
+
+write_rds(R_hat_Risk, paste0("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/1-Diagnostics/",
+               "TrtEff0.50",
+               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-R_hat_Risk.rds"))
 ```
-
-
-
-
-
 
 
 ### 2. Heterogeneity -- Categorical Prognostic Variable -- Noise Variables
 
 ```{r}
-### Setting Simulation Parameters
-
 Heterogeneity.type <- Heterogeneity.types[2]
-ProgVar.type       <- ProgVar.types[1]
 Noise.type         <- Noise.types[1]
+ProgVar.type       <- ProgVar.types[1]
+
+Sim_Trials <- foreach(i = 1:N_iter, .packages = c("tidyverse")) %dopar% {
+  seed <- 1000000 + i
+  Gen_Trial_Data(N_trial, seed, Heterogeneity.type, ProgVar.type, Noise.type)
+}
+```
+
+
+```{r}
+### Tracking Runtime 
+start_time <- Sys.time()
 
 ### Simulation
-
-for (i in 1:N) {
+Heterogeneity_List <- foreach(i = 1:N_iter, .packages = required_packages) %dopar% {
     
-    ##################################### Generating Trial Data ##################
+  Trial_Data <- Sim_Trials[[i]]
     
-    ### Gender
-    Gender <- rbinom(200, size = 1, prob = 0.5)
-    
-    ### Age
-    Age <- rnorm(200, mean = 0, sd = 1)
-    
-    ### Baseline Measurement of Outcome (Y_0)
-    Outcome_BL <- rnorm(200, mean = 0, sd = 1)
-    
-    ### Prognostic Variable (Categorical or Continuous)
-    ProgVar <- case_when(ProgVar.type == "Categorical" ~ rbinom(200, size = 1, prob = 0.5),
-                         ProgVar.type == "Continuous"  ~ rnorm(200, mean = 0, sd = 1))
-    
-    
-    
-    ################ Combining variables to create simulated trial data ##########
-    
-    Simulated_Data <- tibble(PID, Treatment, Gender, Age, Outcome_BL, ProgVar)
-    
-    
-    
-    ################## Generating outcomes #######################################
-    
-    ### Coefficients
-    beta.GeneratingOutcome <- case_when(
-      ### No Heterogeneity and Categorical Prognostic Variable
-      Heterogeneity.type == "No Heterogeneity" & 
-      ProgVar.type == "Categorical" ~  c(1.00,    # Intercept
-                                         1.25,    # Treatment
-                                         0.75,    # Categorical 
-                                         1.25,    # Treatment * Categorical Predictor
-                                         -0.75,   # Gender
-                                         -0.75),  # Age
-      ### Heterogeneity and Categorical Prognostic Variable
-      Heterogeneity.type == "Heterogeneity" & 
-      ProgVar.type == "Categorical" ~  c(1.00,    # Intercept
-                                         1.25,    # Treatment
-                                         0.75,    # Categorical 
-                                         1.25,    # Treatment * Categorical Predictor
-                                         -0.75,   # Gender
-                                         -0.75),  # Age
-      ### No Heterogeneity and Continous Prognostic Variable
-      Heterogeneity.type == "No Heterogeneity" & 
-      ProgVar.type == "Continuous" ~   c(1.00,    # Intercept
-                                         1.25,    # Treatment
-                                         0.75,    # Continuous 
-                                         0.00,    # Treatment * Continuous Predictor
-                                         -0.75,   # Gender
-                                         -0.75),  # Age
-      ### Heterogeneity and Continuous Prognostic Variable
-      Heterogeneity.type == "Heterogeneity" & 
-      ProgVar.type == "Continuous" ~   c(1.00,    # Intercept
-                                         1.25,    # Treatment
-                                         0.75,    # Continuous 
-                                         1.25,    # Treatment * Continuous Predictor
-                                         -0.75,   # Gender
-                                         -0.75),  # Age
-      TRUE ~ NA)
-    
-    ### Calculating Trial Outcome
-    Trial_Data <- Simulated_Data |>
-      rowwise() |>
-      mutate(mu = Outcome_BL +
-               beta.GeneratingOutcome[1] + 
-               beta.GeneratingOutcome[2] * Treatment + 
-               beta.GeneratingOutcome[3] * ProgVar + 
-               beta.GeneratingOutcome[4] * Treatment * ProgVar + 
-               beta.GeneratingOutcome[5] * Gender +
-               beta.GeneratingOutcome[6] * Age,
-             Outcome = rnorm(1, mean = mu, sd = 0.5)) |> 
-      select(-mu)
-    
-    if(Noise.type == "Noise") {
-      Trial_Data <- Trial_Data |>
-        mutate(X1 = rnorm(1, mean = 0, sd = 1) + 0.35 * Gender,
-               X2 = rnorm(1, mean = 0, sd = 1) + 0.25 * Age)
-    }
-    
-    ###################### Implementing Stochastic Search Variable Selection #####
-    
-    ### Creating the Design Matrix and Outcome variable for JAGS script (SSVS)
-    ### Ordering of variables:
-    ###     - Gender
-    ###     - Age
-    ###     - Outcome_BL
-    ###     - Categorical Predictor
-    X.SSVS <- Trial_Data |> 
-      select(-c(PID, Treatment, Outcome)) |> 
-      as.matrix()
-    
-    Y <- Trial_Data$Outcome - Trial_Data$Outcome_BL
-    
-    ### Data dimensions
-    p.SSVS <- ncol(X.SSVS)
-    n.SSVS <- nrow(X.SSVS)
-    
-    ### List of initial values for JAGS samples
-    initial_values.SSVS <- list(Y = Y,
-                                n = n.SSVS,
-                                X = X.SSVS,
-                                p = p.SSVS)
-    
-    ### Initializing model
-    model.SSVS <- jags.model(textConnection(model_string.SSVS), 
-                       data = initial_values.SSVS,
-                       n.chains=3)
-    
-    ### Running a 10,000 sample burn in
-    update(model.SSVS, Burn_in)
-    
-    ### Sampling from the posterior
-    JAGS_samps.SSVS  <- coda.samples(model.SSVS, 
-                                     variable.names=c("delta"), 
-                                     n.iter= Iterations)
-    
-    ### Combining the samples of all three chains
-    Samps.SSVS <- JAGS_samps.SSVS[[1]] |>
-      rbind(JAGS_samps.SSVS[[2]], 
-            JAGS_samps.SSVS[[3]])
-    
-    ### Pulling betas
-    #beta0.SSVS <- Samps[,(p+1)]
-    #beta.SSVS <- Samps[,1:p]
-    
-    ### Pulling deltas
-    delta.SSVS <- Samps.SSVS #[,1:p.SSVS + p.SSVS + 1]
-    
-    ### Defining the column names for which covariates each beta and delta represent
-    #colnames(beta.SSVS) <- colnames(X.SSVS)
-    colnames(delta.SSVS) <- colnames(X.SSVS) 
-    
-    ### Pulling the coefficients to include based on SSVS
-    included <- delta.SSVS |>
-      as.data.frame() |>
-      count(across(everything()), sort = TRUE) |>
-      slice(1) |>
-      select(-n) |>
-      pivot_longer(everything(),
-                   names_to = "coef",
-                   values_to = "value") |>
-      filter(value == 1) |>
-      pull(coef)
-    
-    ### Skipping if no variables were to be included
-    if (length(included) == 0) next
-    
-    ################################# Finding Risk Model #########################
-    
-    ### Creating the Design Matrix and Outcome variable for JAGS script (Risk Model)
-    X.Risk <- X.SSVS |>
-      as.data.frame() |>
-      select(any_of(included))
-    
-    ### Data dimensions
-    p.Risk <- ncol(X.Risk)
-    n.Risk <- nrow(X.Risk)
-    
-    ### List of initial values for JAGS samples
-    initial_values.Risk <- list(Y = Y,
-                                n = n.Risk,
-                                X = X.Risk,
-                                p = p.Risk)
-    
-    ### Initializing model
-    Risk.Mod <- jags.model(textConnection(model_string.Risk), 
-                           data = initial_values.Risk,
-                           n.chains=3)
-    
-    ### Running a 10,000 sample burn in
-    update(Risk.Mod, Burn_in)
-    
-    ### Sampling from the posterior
-    JAGS_samps.Risk  <- coda.samples(Risk.Mod, 
-                                     variable.names=c("beta0", "beta"), 
-                                     n.iter= Iterations)
-    
-    ### Combining the samples of all three chains
-    Samps.Risk <- JAGS_samps.Risk[[1]] |>
-      rbind(JAGS_samps.Risk[[2]], 
-            JAGS_samps.Risk[[3]])
-    
-    ### Pulling betas
-    beta0 <- Samps.Risk[,(p.Risk+1)]
-    beta <- Samps.Risk[,1:p.Risk] |> as.data.frame()
-    
-    colnames(beta) <- colnames(X.Risk)
-    
-    
-    
-    ##################################### Calculating each participant risk ######
-    
-    X.Risk <- X.Risk |>
-      as.matrix()
+  Heterogeneity <- Risk_Heterogeneity(Trial_Data, Burn_in, Iterations, 
+                                      SSVS_script = model_string.SSVS,
+                                      Risk_script = model_string.Risk, 
+                                      Heterogeneity_script = model_string.Heterogeneity)
   
-    Risk <- data.frame(Risk = X.Risk %*% as.matrix(colMeans(beta)))
-    
-    Heterogeneity.Data <- bind_cols(Trial_Data, Risk)
-    
-    
-  
-  
-    ############################## Fitting full model to evaluate heterogeneity ###
-    
-    ### Creating the Design Matrix and Outcome variable for JAGS script (Full Model)
-    X.Heterogeneity <- Heterogeneity.Data |> 
-      select(Treatment, Risk) |>
-      mutate(Interaction = Treatment * Risk) |>
-      as.matrix()
-    
-    Y <- Heterogeneity.Data$Outcome
-    
-    ### Data dimensions
-    p.Heterogeneity <- ncol(X.Heterogeneity)
-    n.Heterogeneity <- nrow(X.Heterogeneity)
-    
-    ### List of initial values for JAGS samples
-    initial_values.Heterogeneity <- list(Y = Y,
-                                         n = n.Heterogeneity,
-                                         X = X.Heterogeneity,
-                                         p = p.Heterogeneity)
-    
-    ### Initializing model
-    Heterogeneity <- jags.model(textConnection(model_string.Heterogeneity), 
-                                data = initial_values.Heterogeneity,
-                                n.chains=3)
-    
-    ### Running a 10,000 sample burn in
-    update(Heterogeneity, Burn_in)
-    
-    ### Sampling from the posterior
-    JAGS_samps.Heterogeneity  <- coda.samples(Heterogeneity,
-                                              variable.names=c("beta0", "beta"), 
-                                              n.iter= Iterations)
-  
-  
-  
-  
-    ### Using Highest posterior density intervals to evaluate Heterogeneity ######
-    
-    Samps.Heterogeneity <- JAGS_samps.Heterogeneity[[1]] |>
-      rbind(JAGS_samps.Heterogeneity[[2]], 
-            JAGS_samps.Heterogeneity[[3]])
-    
-    HDI <- hdi(Samps.Heterogeneity[,3]) |> unname()
-    
-    ########### Fitting the noisy risk model ###################################
-    
-    ################################# Calculating Risk #########################
-    
-    if(Noise.type == "Noise") {
-      ### Creating the Design Matrix and Outcome variable for JAGS script (Risk Model)
-      X.Risk_Noise <- Trial_Data |> 
-        select(-c(PID, Treatment, Outcome)) |> 
-        as.matrix()
-      
-      ### Data dimensions
-      p.Risk_Noise <- ncol(X.Risk_Noise)
-      n.Risk_Noise <- nrow(X.Risk_Noise)
-      
-      ### List of initial values for JAGS samples
-      initial_values.Risk_Noise <- list(Y = Y,
-                                        n = n.Risk_Noise,
-                                        X = X.Risk_Noise,
-                                        p = p.Risk_Noise)
-      
-      ### Initializing model
-      Risk.Mod_Noise <- jags.model(textConnection(model_string.Risk), 
-                                   data = initial_values.Risk_Noise,
-                                   n.chains=3)
-    
-      ### Running a 10,000 sample burn in
-      update(Risk.Mod_Noise, Burn_in)
-      
-      ### Sampling from the posterior
-      JAGS_samps.Risk_Noise  <- coda.samples(Risk.Mod_Noise, 
-                                             variable.names=c("beta0", "beta"), 
-                                             n.iter= Iterations)
-    
-      ### Combining the samples of all three chains
-      Samps.Risk_Noise <- JAGS_samps.Risk_Noise[[1]] |>
-        rbind(JAGS_samps.Risk_Noise[[2]], JAGS_samps.Risk_Noise[[3]])
-    
-      ### Pulling betas
-      beta0 <- Samps.Risk_Noise[,(p.Risk_Noise+1)]
-      beta <- Samps.Risk_Noise[,1:p.Risk_Noise] |> as.data.frame()
-    
-      colnames(beta) <- colnames(X.Risk_Noise)
-    
-      X.Risk_Noise <- X.Risk_Noise |>
-        as.matrix()
-  
-      Risk <- data.frame(Risk = X.Risk_Noise %*% as.matrix(colMeans(beta)))
-    
-      Heterogeneity.Data <- bind_cols(Trial_Data, Risk)
-      }
-    
-    ############################ Fitting the full model ########################
-    
-    if(Noise.type == "Noise") {
-      
-      ### Creating the Design Matrix and Outcome variable for JAGS script (Full Model)
-      X.Heterogeneity_Noise <- Heterogeneity.Data |> 
-        select(Treatment, Risk) |>
-        mutate(Interaction = Treatment * Risk) |>
-        as.matrix()
-    
-      Y <- Heterogeneity.Data$Outcome
-    
-      ### Data dimensions
-      p.Heterogeneity_Noise <- ncol(X.Heterogeneity_Noise)
-      n.Heterogeneity_Noise <- nrow(X.Heterogeneity_Noise)
-    
-      ### List of initial values for JAGS samples
-      initial_values.Heterogeneity_Noise <- list(Y = Y,
-                                                 n = n.Heterogeneity_Noise,
-                                                 X = X.Heterogeneity_Noise,
-                                                 p = p.Heterogeneity_Noise)
-    
-      ### Initializing model
-      Heterogeneity_Noise <- jags.model(textConnection(model_string.Heterogeneity),                    
-                                        data = initial_values.Heterogeneity_Noise,
-                                        n.chains=3)
-    
-      ### Running a 10,000 sample burn in
-      update(Heterogeneity_Noise, Burn_in)
-    
-      ### Sampling from the posterior
-      JAGS_samps.Heterogeneity_Noise  <- coda.samples(Heterogeneity_Noise,
-                                                      variable.names=c("beta0", "beta"), 
-                                                      n.iter= Iterations)
-  
-      ### Using Highest posterior density intervals to evaluate Heterogeneity ######
-    
-      Samps.Heterogeneity_Noise <- JAGS_samps.Heterogeneity_Noise[[1]] |>
-        rbind(JAGS_samps.Heterogeneity_Noise[[2]], 
-              JAGS_samps.Heterogeneity_Noise[[3]])
-    
-      HDI_Noise <- hdi(Samps.Heterogeneity_Noise[,3]) |> unname()
+  if(Noise.type == "Noise") {
+    Heterogeneity_Noise <- Risk_Heterogeneity(Trial_Data, Burn_in, Iterations, 
+                                              SSVS_script = model_string.SSVS,
+                                              Risk_script = model_string.Risk, 
+                                              Heterogeneity_script = model_string.Heterogeneity,
+                                              Optimized = FALSE) 
     }
   
-    ########## Using interaction terms to evaluate Heterogeneity #####
-    
-    mod.Age <- lm(Outcome ~ Treatment * Age + Gender + ProgVar + Outcome_BL,
-                  data = Trial_Data)
-    
-    mod.Gen <- lm(Outcome ~ Treatment * Gender + Age + ProgVar + Outcome_BL,
-                  data = Trial_Data)
-    
-    mod.PgV <- lm(Outcome ~ Treatment * ProgVar + Age + Gender + Outcome_BL,
-                  data = Trial_Data)
-    
-    pval.Age <- summary(mod.Age)$coefficients[7,4]
-    pval.Gen <- summary(mod.Gen)$coefficients[7,4]
-    pval.PgV <- summary(mod.PgV)$coefficients[7,4]
-    
-    ############ Using SDIR and F-test to evaluate heterogeneity ###############
-    
-    var.Trt  <- var(Trial_Data$Outcome[Treatment == 1]) 
-    var.Ctrl <- var(Trial_Data$Outcome[Treatment == 0]) 
-    
-    sdir <- sqrt( abs( var.Trt - var.Ctrl ) )
-    
-    sdir.pval <- var.test(Trial_Data$Outcome[Treatment == 1],
-                          Trial_Data$Outcome[Treatment == 0],
-                          ratio = 1,
-                          alternative = "greater",
-                          conf.level  = 0.95)$p.value
+  Alternative_Results <- Alternative_Methods(Trial_Data)
   
-    ############################## Storing the results of simulation #############
+  Output <- Clean_Output(Trial_Data, Heterogeneity, Heterogeneity_Noise, Alternative_Methods, N_trial)
     
-    Outcomes[i,] <- data.frame(rejection.Risk = if_else((HDI[1] < 0 & 0 < HDI[2]), 
-                                                        "Accept", 
-                                                        "Reject"),
-                               Lower.CI = HDI[1],
-                               Upper.CI = HDI[2],
-                               SSVS_results = paste(included, collapse = ", " ),
-                               
-                               rejection.Risk_Noise = if_else(
-                                 Noise.type == "Noise",
-                                 if_else(HDI_Noise[1] < 0 & 0 < HDI_Noise[2], 
-                                         "Accept", "Reject"), 
-                                 NA),
-                               
-                               rejection.interaction = if_else(pval.Age < (0.05 / 3) |
-                                                               pval.Gen < (0.05 / 3) |
-                                                               pval.PgV < (0.05 / 3),
-                                                               "Reject",
-                                                               "Accept"),
-                               
-                               rejection.SDIR = if_else(sdir.pval <= 0.05, 
-                                                        "Reject",
-                                                        "Accept"),
-                               SDIR = sdir
-                               )
-    print(paste0(i))
+  list(Output = Output,
+       Selection_Probability = if(is.null(Heterogeneity$Selection_Probability)) {"N/A"}
+                               else{Heterogeneity$Selection_Probability},
+       Variable_Selections = if(is.null(Heterogeneity$Variable_Selections)) {"N/A"}
+                               else{Heterogeneity$Variable_Selections},
+       R_hat_Heterogeneity = if(is.null(Heterogeneity$Heterogeneity$R_hat )) {"N/A"}
+                               else{Heterogeneity$Heterogeneity$R_hat},
+       R_hat_Risk = if(is.null(Heterogeneity$Risk$Risk$R_hat)) {"N/A"}
+                               else{Heterogeneity$Risk$Risk$R_hat})
 }
 
-N = 10
+### Storing results seperately
+Results <- do.call(rbind, lapply(Heterogeneity_List, `[[`, "Output"))
+Selection_Probability <- lapply(Heterogeneity_List, `[[`, "Selection_Probability")
+Variable_Selections <- lapply(Heterogeneity_List, `[[`, "Variable_Selections")
+R_hat_Heterogeneity <- lapply(Heterogeneity_List, `[[`, "R_hat_Heterogeneity")
+R_hat_Risk <- lapply(Heterogeneity_List, `[[`, "R_hat_Risk")
 
-Outcomes |>
+
+### End runtime tracking
+end_time <- Sys.time()
+time_elapsed <- end_time - start_time; time_elapsed
+
+Results |>
   summarise(
-    Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N,
-    Power.Risk_Noise = sum(rejection.Risk_Noise == "Reject", na.rm = TRUE) / N,
-    Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N,
-    Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N,
+    Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N_iter,
+    Power.Risk_Noise = sum(rejection.Risk_Noise == "Reject", na.rm = TRUE) / N_iter,
+    Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N_iter,
+    Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N_iter,
     SSVS.X1 = sum(str_detect(SSVS_results, "X1")),
     SSVS.X2 = sum(str_detect(SSVS_results, "X2"))
   )
 
-#write_csv(Outcomes, "~/Bayesian_RiskModel_TEH/Simulation_Study/Output/Continuous_Outcomes/Heterogeneity-CatProgVar-Noise.csv")
+path <- paste0("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/",
+               "TrtEff0.50-HetEff0.50",
+               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, ".csv")
 
-#Outcomes <- read_csv("~/Bayesian_RiskModel_TEH/Simulation_Study/Output/Continuous_Outcomes/Heterogeneity-CatProgVar-Noise.csv")
+write_csv(Results, path)
 
+write_rds(Selection_Probability, paste0("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/2-Selection_Probability/",
+               "TrtEff0.50-HetEff1.00",
+               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-SelectProb.rds"))
+
+write_rds(R_hat_Heterogeneity, paste0("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/1-Diagnostics/",
+               "TrtEff0.50-HetEff1.00",
+               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-R_hat_Heterogeneity.rds"))
+
+write_rds(Variable_Selections, paste0("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/3-Variable_Selection/",
+               "TrtEff0.50-HetEff1.00",
+               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-Variable_Selections.rds"))
+
+write_rds(R_hat_Risk, paste0("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/1-Diagnostics/",
+               "TrtEff0.50-HetEff1.00",
+               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-R_hat_Risk.rds"))
 ```
-
-### 3. No Heterogeneity -- Continuous Prognostic Variable -- Noise Variables
-
-```{r}
-### Setting Simulation Parameters
-
-Heterogeneity.type <- Heterogeneity.types[1]
-ProgVar.type       <- ProgVar.types[2]
-Noise.type         <- Noise.types[1]
-
-### Simulation
-
-for (i in 1:N) {
-    
-    ##################################### Generating Trial Data ##################
-    
-    ### Gender
-    Gender <- rbinom(200, size = 1, prob = 0.5)
-    
-    ### Age
-    Age <- rnorm(200, mean = 0, sd = 1)
-    
-    ### Baseline Measurement of Outcome (Y_0)
-    Outcome_BL <- rnorm(200, mean = 0, sd = 1)
-    
-    ### Prognostic Variable (Categorical or Continuous)
-    ProgVar <- case_when(ProgVar.type == "Categorical" ~ rbinom(200, size = 1, prob = 0.5),
-                         ProgVar.type == "Continuous"  ~ rnorm(200, mean = 0, sd = 1))
-    
-    
-    
-    ################ Combining variables to create simulated trial data ##########
-    
-    Simulated_Data <- tibble(PID, Treatment, Gender, Age, Outcome_BL, ProgVar)
-    
-    
-    
-    ################## Generating outcomes #######################################
-    
-    ### Coefficients
-    beta.GeneratingOutcome <- case_when(
-      ### No Heterogeneity and Categorical Prognostic Variable
-      Heterogeneity.type == "No Heterogeneity" & 
-      ProgVar.type == "Categorical" ~  c(1.00,    # Intercept
-                                         1.25,    # Treatment
-                                         0.75,    # Categorical 
-                                         1.25,    # Treatment * Categorical Predictor
-                                         -0.75,   # Gender
-                                         -0.75),  # Age
-      ### Heterogeneity and Categorical Prognostic Variable
-      Heterogeneity.type == "Heterogeneity" & 
-      ProgVar.type == "Categorical" ~  c(1.00,    # Intercept
-                                         1.25,    # Treatment
-                                         0.75,    # Categorical 
-                                         1.25,    # Treatment * Categorical Predictor
-                                         -0.75,   # Gender
-                                         -0.75),  # Age
-      ### No Heterogeneity and Continous Prognostic Variable
-      Heterogeneity.type == "No Heterogeneity" & 
-      ProgVar.type == "Continuous" ~   c(1.00,    # Intercept
-                                         1.25,    # Treatment
-                                         0.75,    # Continuous 
-                                         0.00,    # Treatment * Continuous Predictor
-                                         -0.75,   # Gender
-                                         -0.75),  # Age
-      ### Heterogeneity and Continuous Prognostic Variable
-      Heterogeneity.type == "Heterogeneity" & 
-      ProgVar.type == "Continuous" ~   c(1.00,    # Intercept
-                                         1.25,    # Treatment
-                                         0.75,    # Continuous 
-                                         1.25,    # Treatment * Continuous Predictor
-                                         -0.75,   # Gender
-                                         -0.75),  # Age
-      TRUE ~ NA)
-    
-    ### Calculating Trial Outcome
-    Trial_Data <- Simulated_Data |>
-      rowwise() |>
-      mutate(mu = Outcome_BL +
-               beta.GeneratingOutcome[1] + 
-               beta.GeneratingOutcome[2] * Treatment + 
-               beta.GeneratingOutcome[3] * ProgVar + 
-               beta.GeneratingOutcome[4] * Treatment * ProgVar + 
-               beta.GeneratingOutcome[5] * Gender +
-               beta.GeneratingOutcome[6] * Age,
-             Outcome = rnorm(1, mean = mu, sd = 0.5)) |> 
-      select(-mu)
-    
-    if(Noise.type == "Noise") {
-      Trial_Data <- Trial_Data |>
-        mutate(X1 = rnorm(1, mean = 0, sd = 1) + 0.35 * Gender,
-               X2 = rnorm(1, mean = 0, sd = 1) + 0.25 * Age)
-    }
-    
-    ###################### Implementing Stochastic Search Variable Selection #####
-    
-    ### Creating the Design Matrix and Outcome variable for JAGS script (SSVS)
-    ### Ordering of variables:
-    ###     - Gender
-    ###     - Age
-    ###     - Outcome_BL
-    ###     - Categorical Predictor
-    X.SSVS <- Trial_Data |> 
-      select(-c(PID, Treatment, Outcome)) |> 
-      as.matrix()
-    
-    Y <- Trial_Data$Outcome - Trial_Data$Outcome_BL
-    
-    ### Data dimensions
-    p.SSVS <- ncol(X.SSVS)
-    n.SSVS <- nrow(X.SSVS)
-    
-    ### List of initial values for JAGS samples
-    initial_values.SSVS <- list(Y = Y,
-                                n = n.SSVS,
-                                X = X.SSVS,
-                                p = p.SSVS)
-    
-    ### Initializing model
-    model.SSVS <- jags.model(textConnection(model_string.SSVS), 
-                       data = initial_values.SSVS,
-                       n.chains=3)
-    
-    ### Running a 10,000 sample burn in
-    update(model.SSVS, Burn_in)
-    
-    ### Sampling from the posterior
-    JAGS_samps.SSVS  <- coda.samples(model.SSVS, 
-                                     variable.names=c("delta"), 
-                                     n.iter= 10000)
-    
-    ### Combining the samples of all three chains
-    Samps.SSVS <- JAGS_samps.SSVS[[1]] |>
-      rbind(JAGS_samps.SSVS[[2]], 
-            JAGS_samps.SSVS[[3]])
-    
-    ### Pulling betas
-    #beta0.SSVS <- Samps[,(p+1)]
-    #beta.SSVS <- Samps[,1:p]
-    
-    ### Pulling deltas
-    delta.SSVS <- Samps.SSVS #[,1:p.SSVS + p.SSVS + 1]
-    
-    ### Defining the column names for which covariates each beta and delta represent
-    #colnames(beta.SSVS) <- colnames(X.SSVS)
-    colnames(delta.SSVS) <- colnames(X.SSVS) 
-    
-    ### Pulling the coefficients to include based on SSVS
-    included <- delta.SSVS |>
-      as.data.frame() |>
-      count(across(everything()), sort = TRUE) |>
-      slice(1) |>
-      select(-n) |>
-      pivot_longer(everything(),
-                   names_to = "coef",
-                   values_to = "value") |>
-      filter(value == 1) |>
-      pull(coef)
-    
-    ### Skipping if no variables were to be included
-    if (length(included) == 0) next
-    
-    ################################# Finding Risk Model #########################
-    
-    ### Creating the Design Matrix and Outcome variable for JAGS script (Risk Model)
-    X.Risk <- X.SSVS |>
-      as.data.frame() |>
-      select(any_of(included))
-    
-    ### Data dimensions
-    p.Risk <- ncol(X.Risk)
-    n.Risk <- nrow(X.Risk)
-    
-    ### List of initial values for JAGS samples
-    initial_values.Risk <- list(Y = Y,
-                                n = n.Risk,
-                                X = X.Risk,
-                                p = p.Risk)
-    
-    ### Initializing model
-    Risk.Mod <- jags.model(textConnection(model_string.Risk), 
-                           data = initial_values.Risk,
-                           n.chains=3)
-    
-    ### Running a 10,000 sample burn in
-    update(Risk.Mod, Burn_in)
-    
-    ### Sampling from the posterior
-    JAGS_samps.Risk  <- coda.samples(Risk.Mod, 
-                                     variable.names=c("beta0", "beta"), 
-                                     n.iter= Iterations)
-    
-    ### Combining the samples of all three chains
-    Samps.Risk <- JAGS_samps.Risk[[1]] |>
-      rbind(JAGS_samps.Risk[[2]], 
-            JAGS_samps.Risk[[3]])
-    
-    ### Pulling betas
-    beta0 <- Samps.Risk[,(p.Risk+1)]
-    beta <- Samps.Risk[,1:p.Risk] |> as.data.frame()
-    
-    colnames(beta) <- colnames(X.Risk)
-    
-    
-    
-    ##################################### Calculating each participant risk ######
-    
-    X.Risk <- X.Risk |>
-      as.matrix()
-  
-    Risk <- data.frame(Risk = X.Risk %*% as.matrix(colMeans(beta)))
-    
-    Heterogeneity.Data <- bind_cols(Trial_Data, Risk)
-    
-    
-  
-  
-    ############################## Fitting full model to evaluate heterogeneity ###
-    
-    ### Creating the Design Matrix and Outcome variable for JAGS script (Full Model)
-    X.Heterogeneity <- Heterogeneity.Data |> 
-      select(Treatment, Risk) |>
-      mutate(Interaction = Treatment * Risk) |>
-      as.matrix()
-    
-    Y <- Heterogeneity.Data$Outcome
-    
-    ### Data dimensions
-    p.Heterogeneity <- ncol(X.Heterogeneity)
-    n.Heterogeneity <- nrow(X.Heterogeneity)
-    
-    ### List of initial values for JAGS samples
-    initial_values.Heterogeneity <- list(Y = Y,
-                                         n = n.Heterogeneity,
-                                         X = X.Heterogeneity,
-                                         p = p.Heterogeneity)
-    
-    ### Initializing model
-    Heterogeneity <- jags.model(textConnection(model_string.Heterogeneity), 
-                                data = initial_values.Heterogeneity,
-                                n.chains=3)
-    
-    ### Running a 10,000 sample burn in
-    update(Heterogeneity, Burn_in)
-    
-    ### Sampling from the posterior
-    JAGS_samps.Heterogeneity  <- coda.samples(Heterogeneity,
-                                              variable.names=c("beta0", "beta"), 
-                                              n.iter= Iterations)
-  
-  
-  
-  
-    ### Using Highest posterior density intervals to evaluate Heterogeneity ######
-    
-    Samps.Heterogeneity <- JAGS_samps.Heterogeneity[[1]] |>
-      rbind(JAGS_samps.Heterogeneity[[2]], 
-            JAGS_samps.Heterogeneity[[3]])
-    
-    HDI <- hdi(Samps.Heterogeneity[,3]) |> unname()
-    
-    ########### Fitting the noisy risk model ###################################
-    
-    ################################# Calculating Risk #########################
-    
-    if(Noise.type == "Noise") {
-      ### Creating the Design Matrix and Outcome variable for JAGS script (Risk Model)
-      X.Risk_Noise <- Trial_Data |> 
-        select(-c(PID, Treatment, Outcome)) |> 
-        as.matrix()
-      
-      ### Data dimensions
-      p.Risk_Noise <- ncol(X.Risk_Noise)
-      n.Risk_Noise <- nrow(X.Risk_Noise)
-      
-      ### List of initial values for JAGS samples
-      initial_values.Risk_Noise <- list(Y = Y,
-                                        n = n.Risk_Noise,
-                                        X = X.Risk_Noise,
-                                        p = p.Risk_Noise)
-      
-      ### Initializing model
-      Risk.Mod_Noise <- jags.model(textConnection(model_string.Risk), 
-                                   data = initial_values.Risk_Noise,
-                                   n.chains=3)
-    
-      ### Running a 10,000 sample burn in
-      update(Risk.Mod_Noise, Burn_in)
-      
-      ### Sampling from the posterior
-      JAGS_samps.Risk_Noise  <- coda.samples(Risk.Mod_Noise, 
-                                             variable.names=c("beta0", "beta"), 
-                                             n.iter= Iterations)
-    
-      ### Combining the samples of all three chains
-      Samps.Risk_Noise <- JAGS_samps.Risk_Noise[[1]] |>
-        rbind(JAGS_samps.Risk_Noise[[2]], JAGS_samps.Risk_Noise[[3]])
-    
-      ### Pulling betas
-      beta0 <- Samps.Risk_Noise[,(p.Risk_Noise+1)]
-      beta <- Samps.Risk_Noise[,1:p.Risk_Noise] |> as.data.frame()
-    
-      colnames(beta) <- colnames(X.Risk_Noise)
-    
-      X.Risk_Noise <- X.Risk_Noise |>
-        as.matrix()
-  
-      Risk <- data.frame(Risk = X.Risk_Noise %*% as.matrix(colMeans(beta)))
-    
-      Heterogeneity.Data <- bind_cols(Trial_Data, Risk)
-      }
-    
-    ############################ Fitting the full model ########################
-    
-    if(Noise.type == "Noise") {
-      
-      ### Creating the Design Matrix and Outcome variable for JAGS script (Full Model)
-      X.Heterogeneity_Noise <- Heterogeneity.Data |> 
-        select(Treatment, Risk) |>
-        mutate(Interaction = Treatment * Risk) |>
-        as.matrix()
-    
-      Y <- Heterogeneity.Data$Outcome
-    
-      ### Data dimensions
-      p.Heterogeneity_Noise <- ncol(X.Heterogeneity_Noise)
-      n.Heterogeneity_Noise <- nrow(X.Heterogeneity_Noise)
-    
-      ### List of initial values for JAGS samples
-      initial_values.Heterogeneity_Noise <- list(Y = Y,
-                                                 n = n.Heterogeneity_Noise,
-                                                 X = X.Heterogeneity_Noise,
-                                                 p = p.Heterogeneity_Noise)
-    
-      ### Initializing model
-      Heterogeneity_Noise <- jags.model(textConnection(model_string.Heterogeneity),                    
-                                        data = initial_values.Heterogeneity_Noise,
-                                        n.chains=3)
-    
-      ### Running a 10,000 sample burn in
-      update(Heterogeneity_Noise, Burn_in)
-    
-      ### Sampling from the posterior
-      JAGS_samps.Heterogeneity_Noise  <- coda.samples(Heterogeneity_Noise,
-                                                      variable.names=c("beta0", "beta"), 
-                                                      n.iter= Iterations)
-  
-      ### Using Highest posterior density intervals to evaluate Heterogeneity ######
-    
-      Samps.Heterogeneity_Noise <- JAGS_samps.Heterogeneity_Noise[[1]] |>
-        rbind(JAGS_samps.Heterogeneity_Noise[[2]], 
-              JAGS_samps.Heterogeneity_Noise[[3]])
-    
-      HDI_Noise <- hdi(Samps.Heterogeneity_Noise[,3]) |> unname()
-    }
-  
-    ########## Using interaction terms to evaluate Heterogeneity #####
-    
-    mod.Age <- lm(Outcome ~ Treatment * Age + Gender + ProgVar + Outcome_BL,
-                  data = Trial_Data)
-    
-    mod.Gen <- lm(Outcome ~ Treatment * Gender + Age + ProgVar + Outcome_BL,
-                  data = Trial_Data)
-    
-    mod.PgV <- lm(Outcome ~ Treatment * ProgVar + Age + Gender + Outcome_BL,
-                  data = Trial_Data)
-    
-    pval.Age <- summary(mod.Age)$coefficients[7,4]
-    pval.Gen <- summary(mod.Gen)$coefficients[7,4]
-    pval.PgV <- summary(mod.PgV)$coefficients[7,4]
-    
-    ############ Using SDIR and F-test to evaluate heterogeneity ###############
-    
-    var.Trt  <- var(Trial_Data$Outcome[Treatment == 1]) 
-    var.Ctrl <- var(Trial_Data$Outcome[Treatment == 0]) 
-    
-    sdir <- sqrt( abs( var.Trt - var.Ctrl ) )
-    
-    sdir.pval <- var.test(Trial_Data$Outcome[Treatment == 1],
-                          Trial_Data$Outcome[Treatment == 0],
-                          ratio = 1,
-                          alternative = "greater",
-                          conf.level  = 0.95)$p.value
-  
-    ############################## Storing the results of simulation #############
-    
-    Outcomes[i,] <- data.frame(rejection.Risk = if_else((HDI[1] < 0 & 0 < HDI[2]), 
-                                                        "Accept", 
-                                                        "Reject"),
-                               Lower.CI = HDI[1],
-                               Upper.CI = HDI[2],
-                               SSVS_results = paste(included, collapse = ", " ),
-                               
-                               rejection.Risk_Noise = if_else(
-                                 Noise.type == "Noise",
-                                 if_else(HDI_Noise[1] < 0 & 0 < HDI_Noise[2], 
-                                         "Accept", "Reject"), 
-                                 NA),
-                               
-                               rejection.interaction = if_else(pval.Age < (0.05 / 3) |
-                                                               pval.Gen < (0.05 / 3) |
-                                                               pval.PgV < (0.05 / 3),
-                                                               "Reject",
-                                                               "Accept"),
-                               
-                               rejection.SDIR = if_else(sdir.pval <= 0.05, 
-                                                        "Reject",
-                                                        "Accept"),
-                               SDIR = sdir
-                               )
-    print(paste0(i))
-}
-
-write_csv(Outcomes, "~/Bayesian_RiskModel_TEH/Simulation_Study/Output/Continuous_Outcomes/No_Heterogeneity-ContProgVar-Noise")
-```
-
-### 4. Heterogeneity -- Continuous Prognostic Variable -- Noise Variables
-
-```{r}
-### Setting Simulation Parameters
-
-Heterogeneity.type <- Heterogeneity.types[2]
-ProgVar.type       <- ProgVar.types[2]
-Noise.type         <- Noise.types[1]
-
-### Simulation
-
-for (i in 1:N) {
-    
-    ##################################### Generating Trial Data ##################
-    
-    ### Gender
-    Gender <- rbinom(200, size = 1, prob = 0.5)
-    
-    ### Age
-    Age <- rnorm(200, mean = 0, sd = 1)
-    
-    ### Baseline Measurement of Outcome (Y_0)
-    Outcome_BL <- rnorm(200, mean = 0, sd = 1)
-    
-    ### Prognostic Variable (Categorical or Continuous)
-    ProgVar <- case_when(ProgVar.type == "Categorical" ~ rbinom(200, size = 1, prob = 0.5),
-                         ProgVar.type == "Continuous"  ~ rnorm(200, mean = 0, sd = 1))
-    
-    
-    
-    ################ Combining variables to create simulated trial data ##########
-    
-    Simulated_Data <- tibble(PID, Treatment, Gender, Age, Outcome_BL, ProgVar)
-    
-    
-    
-    ################## Generating outcomes #######################################
-    
-    ### Coefficients
-    beta.GeneratingOutcome <- case_when(
-      ### No Heterogeneity and Categorical Prognostic Variable
-      Heterogeneity.type == "No Heterogeneity" & 
-      ProgVar.type == "Categorical" ~  c(1.00,    # Intercept
-                                         1.25,    # Treatment
-                                         0.75,    # Categorical 
-                                         1.25,    # Treatment * Categorical Predictor
-                                         -0.75,   # Gender
-                                         -0.75),  # Age
-      ### Heterogeneity and Categorical Prognostic Variable
-      Heterogeneity.type == "Heterogeneity" & 
-      ProgVar.type == "Categorical" ~  c(1.00,    # Intercept
-                                         1.25,    # Treatment
-                                         0.75,    # Categorical 
-                                         1.25,    # Treatment * Categorical Predictor
-                                         -0.75,   # Gender
-                                         -0.75),  # Age
-      ### No Heterogeneity and Continous Prognostic Variable
-      Heterogeneity.type == "No Heterogeneity" & 
-      ProgVar.type == "Continuous" ~   c(1.00,    # Intercept
-                                         1.25,    # Treatment
-                                         0.75,    # Continuous 
-                                         0.00,    # Treatment * Continuous Predictor
-                                         -0.75,   # Gender
-                                         -0.75),  # Age
-      ### Heterogeneity and Continuous Prognostic Variable
-      Heterogeneity.type == "Heterogeneity" & 
-      ProgVar.type == "Continuous" ~   c(1.00,    # Intercept
-                                         1.00,    # Treatment
-                                         0.75,    # Continuous 
-                                         1.00,    # Treatment * Continuous Predictor
-                                         -0.75,   # Gender
-                                         -0.75),  # Age
-      TRUE ~ NA)
-    
-    ### Calculating Trial Outcome
-    Trial_Data <- Simulated_Data |>
-      rowwise() |>
-      mutate(mu = Outcome_BL +
-               beta.GeneratingOutcome[1] + 
-               beta.GeneratingOutcome[2] * Treatment + 
-               beta.GeneratingOutcome[3] * ProgVar + 
-               beta.GeneratingOutcome[4] * Treatment * ProgVar + 
-               beta.GeneratingOutcome[5] * Gender +
-               beta.GeneratingOutcome[6] * Age,
-             Outcome = rnorm(1, mean = mu, sd = 0.5)) |> 
-      select(-mu)
-    
-    if(Noise.type == "Noise") {
-      Trial_Data <- Trial_Data |>
-        mutate(X1 = rnorm(1, mean = 0, sd = 1) + 0.35 * Gender,
-               X2 = rnorm(1, mean = 0, sd = 1) + 0.25 * Age)
-    }
-    
-    ###################### Implementing Stochastic Search Variable Selection #####
-    
-    ### Creating the Design Matrix and Outcome variable for JAGS script (SSVS)
-    ### Ordering of variables:
-    ###     - Gender
-    ###     - Age
-    ###     - Outcome_BL
-    ###     - Categorical Predictor
-    X.SSVS <- Trial_Data |> 
-      select(-c(PID, Treatment, Outcome)) |> 
-      as.matrix()
-    
-    Y <- Trial_Data$Outcome - Trial_Data$Outcome_BL
-    
-    ### Data dimensions
-    p.SSVS <- ncol(X.SSVS)
-    n.SSVS <- nrow(X.SSVS)
-    
-    ### List of initial values for JAGS samples
-    initial_values.SSVS <- list(Y = Y,
-                                n = n.SSVS,
-                                X = X.SSVS,
-                                p = p.SSVS)
-    
-    ### Initializing model
-    model.SSVS <- jags.model(textConnection(model_string.SSVS), 
-                       data = initial_values.SSVS,
-                       n.chains=3)
-    
-    ### Running a 10,000 sample burn in
-    update(model.SSVS, Burn_in)
-    
-    ### Sampling from the posterior
-    JAGS_samps.SSVS  <- coda.samples(model.SSVS, 
-                                     variable.names=c("delta"), 
-                                     n.iter= 10000)
-    
-    ### Combining the samples of all three chains
-    Samps.SSVS <- JAGS_samps.SSVS[[1]] |>
-      rbind(JAGS_samps.SSVS[[2]], 
-            JAGS_samps.SSVS[[3]])
-    
-    ### Pulling betas
-    #beta0.SSVS <- Samps[,(p+1)]
-    #beta.SSVS <- Samps[,1:p]
-    
-    ### Pulling deltas
-    delta.SSVS <- Samps.SSVS #[,1:p.SSVS + p.SSVS + 1]
-    
-    ### Defining the column names for which covariates each beta and delta represent
-    #colnames(beta.SSVS) <- colnames(X.SSVS)
-    colnames(delta.SSVS) <- colnames(X.SSVS) 
-    
-    ### Pulling the coefficients to include based on SSVS
-    included <- delta.SSVS |>
-      as.data.frame() |>
-      count(across(everything()), sort = TRUE) |>
-      slice(1) |>
-      select(-n) |>
-      pivot_longer(everything(),
-                   names_to = "coef",
-                   values_to = "value") |>
-      filter(value == 1) |>
-      pull(coef)
-    
-    ### Skipping if no variables were to be included
-    if (length(included) == 0) next
-    
-    ################################# Finding Risk Model #########################
-    
-    ### Creating the Design Matrix and Outcome variable for JAGS script (Risk Model)
-    X.Risk <- X.SSVS |>
-      as.data.frame() |>
-      select(any_of(included))
-    
-    ### Data dimensions
-    p.Risk <- ncol(X.Risk)
-    n.Risk <- nrow(X.Risk)
-    
-    ### List of initial values for JAGS samples
-    initial_values.Risk <- list(Y = Y,
-                                n = n.Risk,
-                                X = X.Risk,
-                                p = p.Risk)
-    
-    ### Initializing model
-    Risk.Mod <- jags.model(textConnection(model_string.Risk), 
-                           data = initial_values.Risk,
-                           n.chains=3)
-    
-    ### Running a 10,000 sample burn in
-    update(Risk.Mod, Burn_in)
-    
-    ### Sampling from the posterior
-    JAGS_samps.Risk  <- coda.samples(Risk.Mod, 
-                                     variable.names=c("beta0", "beta"), 
-                                     n.iter= Iterations)
-    
-    ### Combining the samples of all three chains
-    Samps.Risk <- JAGS_samps.Risk[[1]] |>
-      rbind(JAGS_samps.Risk[[2]], 
-            JAGS_samps.Risk[[3]])
-    
-    ### Pulling betas
-    beta0 <- Samps.Risk[,(p.Risk+1)]
-    beta <- Samps.Risk[,1:p.Risk] |> as.data.frame()
-    
-    colnames(beta) <- colnames(X.Risk)
-    
-    
-    
-    ##################################### Calculating each participant risk ######
-    
-    X.Risk <- X.Risk |>
-      as.matrix()
-  
-    Risk <- data.frame(Risk = X.Risk %*% as.matrix(colMeans(beta)))
-    
-    Heterogeneity.Data <- bind_cols(Trial_Data, Risk)
-    
-    
-  
-  
-    ############################## Fitting full model to evaluate heterogeneity ###
-    
-    ### Creating the Design Matrix and Outcome variable for JAGS script (Full Model)
-    X.Heterogeneity <- Heterogeneity.Data |> 
-      select(Treatment, Risk) |>
-      mutate(Interaction = Treatment * Risk) |>
-      as.matrix()
-    
-    Y <- Heterogeneity.Data$Outcome
-    
-    ### Data dimensions
-    p.Heterogeneity <- ncol(X.Heterogeneity)
-    n.Heterogeneity <- nrow(X.Heterogeneity)
-    
-    ### List of initial values for JAGS samples
-    initial_values.Heterogeneity <- list(Y = Y,
-                                         n = n.Heterogeneity,
-                                         X = X.Heterogeneity,
-                                         p = p.Heterogeneity)
-    
-    ### Initializing model
-    Heterogeneity <- jags.model(textConnection(model_string.Heterogeneity), 
-                                data = initial_values.Heterogeneity,
-                                n.chains=3)
-    
-    ### Running a 10,000 sample burn in
-    update(Heterogeneity, Burn_in)
-    
-    ### Sampling from the posterior
-    JAGS_samps.Heterogeneity  <- coda.samples(Heterogeneity,
-                                              variable.names=c("beta0", "beta"), 
-                                              n.iter= Iterations)
-  
-  
-  
-  
-    ### Using Highest posterior density intervals to evaluate Heterogeneity ######
-    
-    Samps.Heterogeneity <- JAGS_samps.Heterogeneity[[1]] |>
-      rbind(JAGS_samps.Heterogeneity[[2]], 
-            JAGS_samps.Heterogeneity[[3]])
-    
-    HDI <- hdi(Samps.Heterogeneity[,3]) |> unname()
-    
-    ########### Fitting the noisy risk model ###################################
-    
-    ################################# Calculating Risk #########################
-    
-    if(Noise.type == "Noise") {
-      ### Creating the Design Matrix and Outcome variable for JAGS script (Risk Model)
-      X.Risk_Noise <- Trial_Data |> 
-        select(-c(PID, Treatment, Outcome)) |> 
-        as.matrix()
-      
-      ### Data dimensions
-      p.Risk_Noise <- ncol(X.Risk_Noise)
-      n.Risk_Noise <- nrow(X.Risk_Noise)
-      
-      ### List of initial values for JAGS samples
-      initial_values.Risk_Noise <- list(Y = Y,
-                                        n = n.Risk_Noise,
-                                        X = X.Risk_Noise,
-                                        p = p.Risk_Noise)
-      
-      ### Initializing model
-      Risk.Mod_Noise <- jags.model(textConnection(model_string.Risk), 
-                                   data = initial_values.Risk_Noise,
-                                   n.chains=3)
-    
-      ### Running a 10,000 sample burn in
-      update(Risk.Mod_Noise, Burn_in)
-      
-      ### Sampling from the posterior
-      JAGS_samps.Risk_Noise  <- coda.samples(Risk.Mod_Noise, 
-                                             variable.names=c("beta0", "beta"), 
-                                             n.iter= Iterations)
-    
-      ### Combining the samples of all three chains
-      Samps.Risk_Noise <- JAGS_samps.Risk_Noise[[1]] |>
-        rbind(JAGS_samps.Risk_Noise[[2]], JAGS_samps.Risk_Noise[[3]])
-    
-      ### Pulling betas
-      beta0 <- Samps.Risk_Noise[,(p.Risk_Noise+1)]
-      beta <- Samps.Risk_Noise[,1:p.Risk_Noise] |> as.data.frame()
-    
-      colnames(beta) <- colnames(X.Risk_Noise)
-    
-      X.Risk_Noise <- X.Risk_Noise |>
-        as.matrix()
-  
-      Risk <- data.frame(Risk = X.Risk_Noise %*% as.matrix(colMeans(beta)))
-    
-      Heterogeneity.Data <- bind_cols(Trial_Data, Risk)
-      }
-    
-    ############################ Fitting the full model ########################
-    
-    if(Noise.type == "Noise") {
-      
-      ### Creating the Design Matrix and Outcome variable for JAGS script (Full Model)
-      X.Heterogeneity_Noise <- Heterogeneity.Data |> 
-        select(Treatment, Risk) |>
-        mutate(Interaction = Treatment * Risk) |>
-        as.matrix()
-    
-      Y <- Heterogeneity.Data$Outcome
-    
-      ### Data dimensions
-      p.Heterogeneity_Noise <- ncol(X.Heterogeneity_Noise)
-      n.Heterogeneity_Noise <- nrow(X.Heterogeneity_Noise)
-    
-      ### List of initial values for JAGS samples
-      initial_values.Heterogeneity_Noise <- list(Y = Y,
-                                                 n = n.Heterogeneity_Noise,
-                                                 X = X.Heterogeneity_Noise,
-                                                 p = p.Heterogeneity_Noise)
-    
-      ### Initializing model
-      Heterogeneity_Noise <- jags.model(textConnection(model_string.Heterogeneity),                    
-                                        data = initial_values.Heterogeneity_Noise,
-                                        n.chains=3)
-    
-      ### Running a 10,000 sample burn in
-      update(Heterogeneity_Noise, Burn_in)
-    
-      ### Sampling from the posterior
-      JAGS_samps.Heterogeneity_Noise  <- coda.samples(Heterogeneity_Noise,
-                                                      variable.names=c("beta0", "beta"), 
-                                                      n.iter= Iterations)
-  
-      ### Using Highest posterior density intervals to evaluate Heterogeneity ######
-    
-      Samps.Heterogeneity_Noise <- JAGS_samps.Heterogeneity_Noise[[1]] |>
-        rbind(JAGS_samps.Heterogeneity_Noise[[2]], 
-              JAGS_samps.Heterogeneity_Noise[[3]])
-    
-      HDI_Noise <- hdi(Samps.Heterogeneity_Noise[,3]) |> unname()
-    }
-  
-    ########## Using interaction terms to evaluate Heterogeneity #####
-    
-    mod.Age <- lm(Outcome ~ Treatment * Age + Gender + ProgVar + Outcome_BL,
-                  data = Trial_Data)
-    
-    mod.Gen <- lm(Outcome ~ Treatment * Gender + Age + ProgVar + Outcome_BL,
-                  data = Trial_Data)
-    
-    mod.PgV <- lm(Outcome ~ Treatment * ProgVar + Age + Gender + Outcome_BL,
-                  data = Trial_Data)
-    
-    pval.Age <- summary(mod.Age)$coefficients[7,4]
-    pval.Gen <- summary(mod.Gen)$coefficients[7,4]
-    pval.PgV <- summary(mod.PgV)$coefficients[7,4]
-    
-    ############ Using SDIR and F-test to evaluate heterogeneity ###############
-    
-    var.Trt  <- var(Trial_Data$Outcome[Treatment == 1]) 
-    var.Ctrl <- var(Trial_Data$Outcome[Treatment == 0]) 
-    
-    sdir <- sqrt( abs( var.Trt - var.Ctrl ) )
-    
-    sdir.pval <- var.test(Trial_Data$Outcome[Treatment == 1],
-                          Trial_Data$Outcome[Treatment == 0],
-                          ratio = 1,
-                          alternative = "greater",
-                          conf.level  = 0.95)$p.value
-  
-    ############################## Storing the results of simulation #############
-    
-    Outcomes[i,] <- data.frame(rejection.Risk = if_else((HDI[1] < 0 & 0 < HDI[2]), 
-                                                        "Accept", 
-                                                        "Reject"),
-                               Lower.CI = HDI[1],
-                               Upper.CI = HDI[2],
-                               SSVS_results = paste(included, collapse = ", " ),
-                               
-                               rejection.Risk_Noise = if_else(
-                                 Noise.type == "Noise",
-                                 if_else(HDI_Noise[1] < 0 & 0 < HDI_Noise[2], 
-                                         "Accept", "Reject"), 
-                                 NA),
-                               
-                               rejection.interaction = if_else(pval.Age < (0.05 / 3) |
-                                                               pval.Gen < (0.05 / 3) |
-                                                               pval.PgV < (0.05 / 3),
-                                                               "Reject",
-                                                               "Accept"),
-                               
-                               rejection.SDIR = if_else(sdir.pval <= 0.05, 
-                                                        "Reject",
-                                                        "Accept"),
-                               SDIR = sdir
-                               )
-    print(paste0(i))
-}
-
-write_csv(Outcomes, "~/Bayesian_RiskModel_TEH/Simulation_Study/Output/Continuous_Outcomes/Heterogeneity-ContProgVar-Noise")
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

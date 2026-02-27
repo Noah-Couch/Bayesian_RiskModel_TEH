@@ -16,14 +16,12 @@ Burn_in <- 5000
 Iterations <- 10000
 
 
-### 
-
 ```
 
 ### Reading Data
 
 ```{r}
-VARIA_Data <- read.csv("~/Bayesian_RiskModel_TEH/Data_Analysis/Data/VARIA_Study.csv") 
+VARIA_Data <- read.csv("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Data_Analysis/Data/VARIA_Study.csv") 
 
 
 #### Add different variances for 
