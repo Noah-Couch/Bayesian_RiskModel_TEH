@@ -23,7 +23,7 @@ Iterations <- 10000
 ```{r}
 VARIA_Data <- read.csv("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Data_Analysis/Data/VARIA_Study.csv") 
 
-
+VARIA_Data <- read.csv("~/Bayesian_RiskModel_TEH/Data_Analysis/Data/VARIA_Study.csv") 
 #### Add different variances for 
 
 ```
@@ -47,23 +47,32 @@ VARIA_Data_Clean <- VARIA_Data |>
                             gender == "Male" ~ 1,
                             TRUE ~ NA),
          Age = age,
+         Age_65 = if_else(age_65 == ">65 years old", 1, 0),
          Weight_BL = base_wt_kg ,
-         #BMI_BL = bmi_base,
+         BMI_BL = bmi_base,
          GaitSpeed_BL = gaitspeed_base,
+         GripStrength_BL = grip_dominant_base,
          GaitSpeed_Source = case_when(gs_source_base == "400 M Fast Walk" ~ 0,
                                       gs_source_base == "6 Min Walk" ~ 1,
                                       TRUE ~ NA),
-         Gaitspeed_ch = gaitspeed_mo6 - gaitspeed_base) |>
+         GripStrength_ch = grip_dominant_mo6 - grip_dominant_base,
+         Gaitspeed_ch = gaitspeed_mo6chg,
+         BMI_ch = bmi_mo6 - bmi_base) |>
   select(Study_ID, 
          Gaitspeed_ch, 
          Trt_WL, 
          Exercise, 
          Gender, 
          Age, 
+         Age_65,
          Weight_BL,
+         #GripStrength_BL,
+         #GripStrength_ch,
          #BMI_BL,
+         #BMI_ch,
          GaitSpeed_BL,
-         GaitSpeed_Source) |>
+         GaitSpeed_Source,
+         gaitspeed_mo6) |>
   drop_na()
 ```
 
@@ -76,7 +85,11 @@ Study <- VARIA_Data_Clean$Study_ID
 
 ### Possible Explanatory Variables
 X.SSVS <- VARIA_Data_Clean |>
-  select(Exercise, Gender, Age, Weight_BL, GaitSpeed_BL, GaitSpeed_Source) |>
+  select(Exercise, Gender, Age, Weight_BL, Age_65, 
+         GaitSpeed_BL#, GaitSpeed_Source
+         #GripStrength_BL
+         #BMI_BL
+         ) |>
   #BMI_BL
   as.matrix()
 
@@ -252,6 +265,25 @@ Risk <- VARIA_Data_Clean |>
   select(Risk)
     
 Heterogeneity.Data <- bind_cols(VARIA_Data_Clean, Risk)
+
+Heterogeneity.Data |>
+  rowwise() |>
+  mutate(
+    Risk_Grp = case_when( Risk <= quantile(Heterogeneity.Data$Risk, c(0.25)) ~
+                            "Grp 1",
+                          Risk <= quantile(Heterogeneity.Data$Risk, c(0.50)) & 
+                                             Risk > quantile(Heterogeneity.Data$Risk, (0.25)) ~
+                            "Grp 2",
+                          Risk <= quantile(Heterogeneity.Data$Risk, c(0.75)) & 
+                                             Risk > quantile(Heterogeneity.Data$Risk, (0.50)) ~
+                            "Grp 3",
+                          Risk <= max(Heterogeneity.Data$Risk) ~
+                            "Grp 4"
+                          
+                          )
+  ) |>
+  ggplot(aes(x = Risk_Grp, y = Gaitspeed_ch, color = factor(Trt_WL))) +
+  geom_boxplot()
 ```
 
 ### Evaluating Heterogeneity
@@ -303,7 +335,7 @@ Heterogeneity <- jags.model(textConnection(model_string.Heterogeneity),
                             n.chains=3)
     
 ### Running a 10,000 sample burn in
-update(Heterogeneity, 2500)
+update(Heterogeneity, 5000)
     
 ### Sampling from the posterior
 JAGS_samps.Heterogeneity  <- coda.samples(Heterogeneity,
@@ -311,8 +343,9 @@ JAGS_samps.Heterogeneity  <- coda.samples(Heterogeneity,
                                           n.iter= 5000)
   
   
-  
-  
+
+gelman.diag(JAGS_samps.Heterogeneity)  
+
 ### Using Highest posterior density intervals to evaluate Heterogeneity ######
     
 Samps.Heterogeneity <- JAGS_samps.Heterogeneity[[1]] |>
@@ -320,6 +353,8 @@ Samps.Heterogeneity <- JAGS_samps.Heterogeneity[[1]] |>
         JAGS_samps.Heterogeneity[[3]])
     
 HDI <- hdi(Samps.Heterogeneity)
+
+
 ```
 
 

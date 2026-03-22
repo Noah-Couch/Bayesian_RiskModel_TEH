@@ -279,3 +279,79 @@ write_rds(R_hat_Risk, paste0("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_T
                "TrtEff0.50-HetEff1.00",
                "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-R_hat_Risk.rds"))
 ```
+
+
+```{r}
+path_pull <- paste0(getwd(), "/Output/",
+               "TrtEff", "0.50", #"-HetEff", "1.00",
+               "N", 50,
+               "-No_Heterogeneity",  
+               "-Categorical", 
+               "-Noise",
+               ".csv")
+
+Results_N50 <- readr::read_csv(path_pull)
+
+N_iter <- 1000
+
+Power_N50 <- Results_N50 |>
+  summarise(
+    Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N_iter,
+    Power.Risk_Noise = sum(rejection.Risk_Noise == "Reject", na.rm = TRUE) / N_iter,
+    Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N_iter,
+    Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N_iter,
+    SSVS.X1 = sum(str_detect(SSVS_results, "X1"))/ N_iter,
+    SSVS.X2 = sum(str_detect(SSVS_results, "X2"))/ N_iter
+  )
+
+path_pull <- paste0(getwd(), "/Output/",
+               "TrtEff", "0.50", #"-HetEff", "1.00",
+               "N", 100,
+               "-No_Heterogeneity",  
+               "-Categorical", 
+               "-Noise",
+               ".csv")
+
+Results_N100 <- readr::read_csv(path_pull)
+
+Power_N100 <- Results_N100 |>
+  summarise(
+    Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N_iter,
+    Power.Risk_Noise = sum(rejection.Risk_Noise == "Reject", na.rm = TRUE) / N_iter,
+    Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N_iter,
+    Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N_iter,
+    SSVS.X1 = sum(str_detect(SSVS_results, "X1"))/ N_iter,
+    SSVS.X2 = sum(str_detect(SSVS_results, "X2"))/ N_iter
+  )
+
+path_pull <- paste0(getwd(), "/Output/",
+               "TrtEff", "0.50", #"-HetEff", "1.00",
+               "N", 50,
+               "-No_Heterogeneity",  
+               "-Categorical", 
+               "-Noise",
+               ".csv")
+
+Results_N200 <- readr::read_csv(path_pull)
+
+Power_N200 <- Results_N200 |>
+  summarise(
+    Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N_iter,
+    Power.Risk_Noise = sum(rejection.Risk_Noise == "Reject", na.rm = TRUE) / N_iter,
+    Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N_iter,
+    Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N_iter,
+    SSVS.X1 = sum(str_detect(SSVS_results, "X1")) / N_iter,
+    SSVS.X2 = sum(str_detect(SSVS_results, "X2")) / N_iter
+  )
+
+
+
+rbind(Power_N50, Power_N100, Power_N200)
+
+
+
+
+
+```
+
+
