@@ -1,5 +1,5 @@
 
-source("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/JAGS_Scripts.R")
+source("~/Thesis/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/JAGS_Scripts.R")
 
 ########### Implementing Stochastic Search Variable Selection (SSVS) ###########
 

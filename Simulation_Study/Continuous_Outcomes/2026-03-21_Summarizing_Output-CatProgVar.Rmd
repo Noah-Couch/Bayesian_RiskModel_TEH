@@ -55,7 +55,7 @@ theme_update(
 
 ```{r}
 path_pull <- paste0(getwd(), "/Output/",
-               "TrtEff", "0.50", #"-HetEff", "1.00",
+               "TrtEff", "0.50",
                "N", 50,
                "-No_Heterogeneity",  
                "-Categorical", 
@@ -121,8 +121,9 @@ Power_N200 <- Results_N200 |>
 
 
 
-Power_Summ <- rbind(Power_N50, Power_N100, Power_N200)
+Power_Summ <- rbind(Power_N50, Power_N100, Power_N200) 
 
+SSVS_T05_H0 <- Power_Summ |> select(SSVS.X1, SSVS.X2)
 
 Power_Summ |>
   mutate(N = c(50, 100, 200)) |>
@@ -143,7 +144,7 @@ Power_Summ |>
 
 ```{r}
 path_pull <- paste0(getwd(), "/Output/",
-               "TrtEff", "1.00", #"-HetEff", "1.00",
+               "TrtEff", "1.00", 
                "N", 50,
                "-No_Heterogeneity",  
                "-Categorical", 
@@ -167,7 +168,7 @@ Power_N50 <- Results_N50 |>
   )
 
 path_pull <- paste0(getwd(), "/Output/",
-               "TrtEff", "1.00", #"-HetEff", "1.00",
+               "TrtEff", "1.00",
                "N", 100,
                "-No_Heterogeneity",  
                "-Categorical", 
@@ -188,7 +189,7 @@ Power_N100 <- Results_N100 |>
   )
 
 path_pull <- paste0(getwd(), "/Output/",
-               "TrtEff", "1.00", #"-HetEff", "1.00",
+               "TrtEff", "1.00",
                "N", 200,
                "-No_Heterogeneity",  
                "-Categorical", 
@@ -212,6 +213,7 @@ Power_N200 <- Results_N200 |>
 
 Power_Summ <- rbind(Power_N50, Power_N100, Power_N200)
 
+SSVS_T10_H0 <- Power_Summ |> select(SSVS.X1, SSVS.X2)
 
 Power_Summ |>
   mutate(N = c(50, 100, 200)) |>
@@ -301,6 +303,7 @@ Power_N200 <- Results_N200 |>
 
 Power_Summ <- rbind(Power_N50, Power_N100, Power_N200)
 
+SSVS_T05_H05 <- Power_Summ |> select(SSVS.X1, SSVS.X2)
 
 Power_Summ |>
   mutate(N = c(50, 100, 200)) |>
@@ -367,9 +370,156 @@ Power_Summ |>
   xlab("Sample Size, N") +
   ylab("Power")
 
-ggsave("~/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/4-Plots/TrtEff0.50-HetEff0.50N200-Heterogeneity-Categorical-Noise.jpg")
+Power_Summ
+
+ggsave(paste0(getwd(),"/Output/4-Plots/TrtEff0.50-HetEff0.50-Heterogeneity-Categorical-Noise.jpg"), height = 1349, width = 2187, units = "px")
 ```
 
+
+### TE 0.50, HE 1.00
+
+```{r}
+path_pull <- paste0(getwd(), "/Output/",
+               "TrtEff", "0.50", "-HetEff", "1.00",
+               "N", 50,
+               "-Heterogeneity",  
+               "-Categorical", 
+               "-Noise",
+               ".csv")
+
+Results_N50 <- readr::read_csv(path_pull)
+
+N_iter <- 1000
+
+Power_N50 <- Results_N50 |>
+  filter(Beta_Trt != "N/A") |>
+  summarise(
+    Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N_iter,
+    Power.Risk_Noise = sum(rejection.Risk_Noise == "Reject", na.rm = TRUE) / N_iter,
+    Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N_iter,
+    Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N_iter,
+    SSVS.X1 = sum(str_detect(SSVS_results, "X1"))/ N_iter,
+    SSVS.X2 = sum(str_detect(SSVS_results, "X2"))/ N_iter,
+    MSE.lower = sum(Prediction_Error < Prediction_Error_Noise) / N_iter
+  )
+
+path_pull <- paste0(getwd(), "/Output/",
+               "TrtEff", "0.50", "-HetEff", "1.00",
+               "N", 100,
+               "-Heterogeneity",  
+               "-Categorical", 
+               "-Noise",
+               ".csv")
+
+Results_N100 <- readr::read_csv(path_pull)
+
+Power_N100 <- Results_N100 |>
+  summarise(
+    Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N_iter,
+    Power.Risk_Noise = sum(rejection.Risk_Noise == "Reject", na.rm = TRUE) / N_iter,
+    Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N_iter,
+    Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N_iter,
+    SSVS.X1 = sum(str_detect(SSVS_results, "X1"))/ N_iter,
+    SSVS.X2 = sum(str_detect(SSVS_results, "X2"))/ N_iter,
+    MSE.lower = sum(Prediction_Error < Prediction_Error_Noise) / N_iter
+  )
+
+path_pull <- paste0(getwd(), "/Output/",
+               "TrtEff", "0.50", "-HetEff", "1.00",
+               "N", 200,
+               "-Heterogeneity",  
+               "-Categorical", 
+               "-Noise",
+               ".csv")
+
+Results_N200 <- readr::read_csv(path_pull)
+
+Power_N200 <- Results_N200 |>
+  summarise(
+    Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N_iter,
+    Power.Risk_Noise = sum(rejection.Risk_Noise == "Reject", na.rm = TRUE) / N_iter,
+    Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N_iter,
+    Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N_iter,
+    SSVS.X1 = sum(str_detect(SSVS_results, "X1")) / N_iter,
+    SSVS.X2 = sum(str_detect(SSVS_results, "X2")) / N_iter,
+    MSE.lower = sum(Prediction_Error < Prediction_Error_Noise) / N_iter
+  )
+
+
+
+Power_Summ <- rbind(Power_N50, Power_N100, Power_N200)
+
+SSVS_T05_H10 <- Power_Summ |> select(SSVS.X1, SSVS.X2)
+
+Power_Summ |>
+  mutate(N = c(50, 100, 200)) |>
+  pivot_longer(
+    cols = starts_with("Power"),
+    names_to = "Method",
+    values_to = "Power"
+  ) |>
+  mutate(Method = str_remove(Method, "Power."),
+         ) |>
+  mutate(
+    Method = case_when(Method == "Risk" ~ "Optimized Model",
+                       Method == "Risk_Noise" ~ "Non-optimized Model",
+                       Method == "Intx" ~ "Interaction",
+                       TRUE ~ Method
+                            )
+  ) |>
+  mutate(label = if_else(N == max(N), Method, NA_character_)) |>
+  ggplot(aes(x = N, y = Power, group = Method)) + 
+  # Geometric annotations that play the role of grid lines
+  geom_vline(
+    xintercept = seq(50, 200, by = 25),
+    color = "grey91", 
+    size = .6
+  ) +
+  geom_segment(
+    data = tibble(y = seq(0, 1, by = 0.25), x1 = 40, x2 = 200),
+    aes(x = x1, xend = x2, y = y, yend = y),
+    inherit.aes = FALSE,
+    color = "grey91",
+    size = .6
+  ) +
+  geom_segment(
+    data = tibble(y = 0, x1 = 40, x2 = 200),
+    aes(x = x1, xend = x2, y = y, yend = y),
+    inherit.aes = FALSE,
+    color = "grey60",
+    size = .8
+  ) +
+  geom_point(aes(color = Method == "Optimized Model")) +
+  geom_line(aes(color = Method == "Optimized Model")) +
+  geom_text_repel(aes(color = Method == "Optimized Model", label = label),,
+    family = "Lato",
+    fontface = "bold",
+    size = 2,
+    direction = "y",
+    xlim = c(220, NA),
+    hjust = 0,
+    segment.size = .7,
+    segment.alpha = .5,
+    segment.linetype = "dotted",
+    box.padding = .4,
+    segment.curvature = -0.1,
+    segment.ncp = 3,
+    segment.angle = 20,
+                  na.rm = TRUE) +
+  scale_x_continuous(
+    expand = c(0, 0),
+    limits = c(40, 250), 
+    breaks = seq(50, 200, by = 50)
+  ) +
+  scale_color_manual(values = c("TRUE" = "red", "FALSE" = "gray"))+
+  guides(color = "none") +
+  xlab("Sample Size, N") +
+  ylab("Power")
+
+Power_Summ
+
+ggsave(paste0(getwd(),"/Output/4-Plots/TrtEff0.50-HetEff1.00N200-Heterogeneity-Categorical-Noise.jpg"), height = 1349, width = 2187, units = "px")
+```
 
 ### TE 1.00, HE 0.50
 
@@ -444,6 +594,153 @@ Power_N200 <- Results_N200 |>
 
 Power_Summ <- rbind(Power_N50, Power_N100, Power_N200)
 
+SSVS_T10_H05 <- Power_Summ |> select(SSVS.X1, SSVS.X2)
+
+Power_Summ
+
+Power_Summ |>
+  mutate(N = c(50, 100, 200)) |>
+  pivot_longer(
+    cols = starts_with("Power"),
+    names_to = "Method",
+    values_to = "Power"
+  ) |>
+  mutate(Method = str_remove(Method, "Power."),
+         ) |>
+  mutate(
+    Method = case_when(Method == "Risk" ~ "Optimized Model",
+                       Method == "Risk_Noise" ~ "Non-optimized Model",
+                       Method == "Intx" ~ "Interaction",
+                       TRUE ~ Method
+                            )
+  ) |>
+  mutate(label = if_else(N == max(N), Method, NA_character_)) |>
+  ggplot(aes(x = N, y = Power, group = Method)) + 
+  # Geometric annotations that play the role of grid lines
+  geom_vline(
+    xintercept = seq(50, 200, by = 25),
+    color = "grey91", 
+    size = .6
+  ) +
+  geom_segment(
+    data = tibble(y = seq(0, 1, by = 0.25), x1 = 40, x2 = 200),
+    aes(x = x1, xend = x2, y = y, yend = y),
+    inherit.aes = FALSE,
+    color = "grey91",
+    size = .6
+  ) +
+  geom_segment(
+    data = tibble(y = 0, x1 = 40, x2 = 200),
+    aes(x = x1, xend = x2, y = y, yend = y),
+    inherit.aes = FALSE,
+    color = "grey60",
+    size = .8
+  ) +
+  geom_point(aes(color = Method == "Optimized Model")) +
+  geom_line(aes(color = Method == "Optimized Model")) +
+  geom_text_repel(aes(color = Method == "Optimized Model", label = label),,
+    family = "Lato",
+    fontface = "bold",
+    size = 2,
+    direction = "y",
+    xlim = c(220, NA),
+    hjust = 0,
+    segment.size = .7,
+    segment.alpha = .5,
+    segment.linetype = "dotted",
+    box.padding = .4,
+    segment.curvature = -0.1,
+    segment.ncp = 3,
+    segment.angle = 20,
+                  na.rm = TRUE) +
+  scale_x_continuous(
+    expand = c(0, 0),
+    limits = c(40, 250), 
+    breaks = seq(50, 200, by = 50)
+  ) +
+  scale_color_manual(values = c("TRUE" = "red", "FALSE" = "gray"))+
+  guides(color = "none") +
+  xlab("Sample Size, N") +
+  ylab("Power")
+  
+
+ggsave(paste0(getwd(),"/Output/4-Plots/TrtEff1.00-HetEff0.50-Heterogeneity-Categorical-Noise.jpg"), height = 1349, width = 2187, units = "px")
+```
+
+### TE 1.00, HE 1.00
+
+```{r}
+path_pull <- paste0(getwd(), "/Output/",
+               "TrtEff", "1.00", "-HetEff", "1.00",
+               "N", 50,
+               "-Heterogeneity",  
+               "-Categorical", 
+               "-Noise",
+               ".csv")
+
+Results_N50 <- readr::read_csv(path_pull)
+
+N_iter <- 1000
+
+Power_N50 <- Results_N50 |>
+  filter(Beta_Trt != "N/A") |>
+  summarise(
+    Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N_iter,
+    Power.Risk_Noise = sum(rejection.Risk_Noise == "Reject", na.rm = TRUE) / N_iter,
+    Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N_iter,
+    Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N_iter,
+    SSVS.X1 = sum(str_detect(SSVS_results, "X1"))/ N_iter,
+    SSVS.X2 = sum(str_detect(SSVS_results, "X2"))/ N_iter,
+    MSE.lower = sum(Prediction_Error < Prediction_Error_Noise) / N_iter
+  )
+
+path_pull <- paste0(getwd(), "/Output/",
+               "TrtEff", "1.00", "-HetEff", "1.00",
+               "N", 100,
+               "-Heterogeneity",  
+               "-Categorical", 
+               "-Noise",
+               ".csv")
+
+Results_N100 <- readr::read_csv(path_pull)
+
+Power_N100 <- Results_N100 |>
+  summarise(
+    Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N_iter,
+    Power.Risk_Noise = sum(rejection.Risk_Noise == "Reject", na.rm = TRUE) / N_iter,
+    Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N_iter,
+    Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N_iter,
+    SSVS.X1 = sum(str_detect(SSVS_results, "X1"))/ N_iter,
+    SSVS.X2 = sum(str_detect(SSVS_results, "X2"))/ N_iter,
+    MSE.lower = sum(Prediction_Error < Prediction_Error_Noise) / N_iter
+  )
+
+path_pull <- paste0(getwd(), "/Output/",
+               "TrtEff", "1.00", "-HetEff", "1.00",
+               "N", 200,
+               "-Heterogeneity",  
+               "-Categorical", 
+               "-Noise",
+               ".csv")
+
+Results_N200 <- readr::read_csv(path_pull)
+
+Power_N200 <- Results_N200 |>
+  summarise(
+    Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N_iter,
+    Power.Risk_Noise = sum(rejection.Risk_Noise == "Reject", na.rm = TRUE) / N_iter,
+    Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N_iter,
+    Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N_iter,
+    SSVS.X1 = sum(str_detect(SSVS_results, "X1")) / N_iter,
+    SSVS.X2 = sum(str_detect(SSVS_results, "X2")) / N_iter,
+    MSE.lower = sum(Prediction_Error < Prediction_Error_Noise) / N_iter
+  )
+
+
+
+Power_Summ <- rbind(Power_N50, Power_N100, Power_N200)
+
+SSVS_T10_H10 <- Power_Summ |> select(SSVS.X1, SSVS.X2)
 
 Power_Summ |>
   mutate(N = c(50, 100, 200)) |>
@@ -512,4 +809,9 @@ Power_Summ |>
   
 
 ggsave("~/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/4-Plots/TrtEff1.00-HetEff0.50N200-Heterogeneity-Categorical-Noise.jpg")
+```
+
+
+```{r}
+t <- rbind(SSVS_T05_H0, SSVS_T05_H05, SSVS_T05_H10, SSVS_T10_H0, SSVS_T10_H05, SSVS_T10_H10)
 ```

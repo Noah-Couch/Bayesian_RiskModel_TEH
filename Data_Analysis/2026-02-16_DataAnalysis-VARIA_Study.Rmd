@@ -11,6 +11,7 @@ library(rjags)
 library(ggplot2)
 library(kableExtra)
 library(HDInterval)
+library(gtsummary)
 
 Burn_in <- 5000
 Iterations <- 10000
@@ -72,49 +73,8 @@ VARIA_Data_Clean <- VARIA_Data |>
          #BMI_ch,
          GaitSpeed_BL,
          GaitSpeed_Source,
-         gs_source,
          gaitspeed_mo6) |>
   drop_na()
-
-library(gtsummary)
-
-VARIA_Data_Clean |>
-  tbl_summary(
-    include = c(Age, Gender, Weight_BL, GaitSpeed_BL, Exercise, gs_source),
-    by = Trt_WL
-  ) |>
-  add_overall()
-
-VARIA_Data
-
-```
-
-### Alternative Methods
- 
-```{r}
-#Exercise, Gender, Age, Weight_BL, Age_65, 
-#         GaitSpeed_BL
-
-library(lmerTest)
-
-subgrp <- lmer(Gaitspeed_ch ~ Trt_WL * Exercise + Age + Gender + GaitSpeed_BL + (1| Study_ID),
-               data = VARIA_Data_Clean)
-
-summary(subgrp)
-
-
-
-
-
-var.test(filter(VARIA_Data_Clean, Trt_WL == 1)$Gaitspeed_ch,
-         filter(VARIA_Data_Clean, Trt_WL == 0)$Gaitspeed_ch,
-         ratio = 1,
-         alternative = "greater",
-         conf.level  = 0.95)$p.value
-
-var.Trt  <- var(filter(VARIA_Data_Clean, Trt_WL == 1)$Gaitspeed_ch) 
-var.Ctrl <- var(filter(VARIA_Data_Clean, Trt_WL == 0)$Gaitspeed_ch) 
-sdir <- sqrt( abs( var.Trt - var.Ctrl ) )
 ```
 
 ### Defining Initial Variables

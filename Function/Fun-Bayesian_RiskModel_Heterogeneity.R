@@ -2,13 +2,13 @@
 ############################## Required Functions ##############################
 
 ### Stochastic Search Variable Selection
-source("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-SSVS.R")
+source("~/Thesis/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-SSVS.R")
 
 ### Risk Calculations
-source("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-Risk_Calculations.R")
+source("~/Thesis/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-Risk_Calculations.R")
 
 ### Evaluate Heterogeneity
-source("/deac/sta/beaversGrp/coucns24/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-Risk_Heterogeneity.R")
+source("~/Thesis/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-Risk_Heterogeneity.R")
 
 
 
