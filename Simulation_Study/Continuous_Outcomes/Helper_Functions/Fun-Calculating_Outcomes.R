@@ -35,7 +35,7 @@ calculating_Outcomes <- function(Simulated_Data, Heterogeneity.type, ProgVar.typ
       ProgVar.type == "Continuous" ~   c(1.00,    # Intercept
                                          1.00,    # Treatment
                                          0.75,    # Continuous 
-                                         1.25,    # Treatment * Continuous Predictor
+                                         1.00,    # Treatment * Continuous Predictor
                                          -0.75,   # Gender
                                          -0.75),  # Age
     TRUE ~ NA)
@@ -61,7 +61,7 @@ calculating_Outcomes <- function(Simulated_Data, Heterogeneity.type, ProgVar.typ
   
   if(Noise.type == "Noise") {
     Trial_Data <- Trial_Data |>
-      mutate(X1 = rnorm(1, mean = 0, sd = 2) + 0.75 * Gender + 1 * ProgVar,
+      mutate(X1 = Age * 0.8 + Outcome_BL * 0.8 + rnorm(n, sd = 0.5),
              X2 = rbinom(1, size = 1, prob = 0.3 + 0.25 * Gender ))
   }
   

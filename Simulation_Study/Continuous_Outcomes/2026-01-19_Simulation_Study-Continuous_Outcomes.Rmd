@@ -191,6 +191,9 @@ Heterogeneity.type <- Heterogeneity.types[2]
 Noise.type         <- Noise.types[1]
 ProgVar.type       <- ProgVar.types[1]
 
+N_trial <- 100
+N_iter <- 100
+
 Sim_Trials <- foreach(i = 1:N_iter, .packages = c("tidyverse")) %dopar% {
   seed <- 1000000 + i
   Gen_Trial_Data(N_trial, seed, Heterogeneity.type, ProgVar.type, Noise.type)
