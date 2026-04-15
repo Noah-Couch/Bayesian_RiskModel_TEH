@@ -49,7 +49,8 @@ Risk_jags <- function(Trial_Data, included, Burn_in, Iterations,
   
   model <- jags.model(textConnection(model_string.Risk),
                       data = initial_values,
-                      n.chains=4)
+                      n.chains=4,
+                      quiet = TRUE)
   
   
   ### Sampling from posterior --------------------------------------------------

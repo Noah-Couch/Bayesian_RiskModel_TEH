@@ -50,7 +50,8 @@ SSVS_jags <- function(Trial_Data, Burn_in, Iterations, model_string.SSVS) {
   
   model <- jags.model(textConnection(model_string.SSVS),
                       data = initial_values,
-                      n.chains=4)
+                      n.chains=4,
+                      quiet = TRUE)
   
   
   ### Sampling from posterior --------------------------------------------------

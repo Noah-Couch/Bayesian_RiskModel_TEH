@@ -1,7 +1,7 @@
 
 ############################# Generating Outcomes ##############################
 
-calculating_Outcomes <- function(Simulated_Data, Noise.Vars, T_Effect, H_Effect, Outcome_Var) {
+calculating_Outcomes <- function(Simulated_Data, Noise.Vars, T_Effect, H_Effect, Outcome_SD) {
   
   ### Generating Outcomes ------------------------------------------------------
   
@@ -16,7 +16,7 @@ calculating_Outcomes <- function(Simulated_Data, Noise.Vars, T_Effect, H_Effect,
              -0.75 * Z1 +
              -0.75 * Z2, #+
              #rnorm(1, mean = 0, sd = 0.5),
-           Outcome = rnorm(1, mean = mu, sd = Outcome_Var)
+           Outcome = rnorm(1, mean = mu, sd = Outcome_SD)
            ) |>
     select(-c(mu))
   

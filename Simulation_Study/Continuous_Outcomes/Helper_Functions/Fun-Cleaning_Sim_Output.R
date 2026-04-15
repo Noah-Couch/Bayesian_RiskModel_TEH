@@ -68,8 +68,10 @@ Clean_Output <- function(Trial_Data, Heterogeneity, Heterogeneity_Noise, Alterna
                            NA),
                          Prediction_Error_Noise = Prediction_Error_Noise,
                          ### Interaction Model ---------------------------------
-                         rejection.interaction = if_else(Intx_pval < (0.05 / (4 + Noise.Vars)),
+                         rejection.interaction = if_else(Intx_pval < 0.05,
                                                          "Reject", "Accept"),
+                         rejection.interaction_adj = if_else(Intx_pval < (0.05 / (4 + Noise.Vars)),
+                                                             "Reject", "Accept"),
                          ### SDIR ----------------------------------------------
                          rejection.SDIR = if_else(SDIR_pval <= 0.05,                                                        
                                                   "Reject", "Accept"),

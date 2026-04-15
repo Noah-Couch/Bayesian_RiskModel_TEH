@@ -40,7 +40,8 @@ Eval_Heterogeneity <- function(Heterogeneity.Data, Burn_in, Iterations, model_st
   
   model <- jags.model(textConnection(model_string.Heterogeneity), 
                       data = initial_values,
-                      n.chains=3)
+                      n.chains=3,
+                      quiet = TRUE)
   
   
   ### Sampling from posterior --------------------------------------------------
