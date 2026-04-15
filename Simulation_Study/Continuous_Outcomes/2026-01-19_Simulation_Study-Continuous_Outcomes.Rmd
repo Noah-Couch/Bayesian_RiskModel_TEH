@@ -87,15 +87,11 @@ Outcome_SD <- Outcome_SDs[1]
 ### Looping over Simulation Parameters -----------------------------------------
 
 #for(i in 1:length(T_Effects)) {
-T_Effect <- T_Effects[1]
+T_Effect <- T_Effects[2]
 
 #for(j in 1:length(H_Effects)) {
-H_Effect <- H_Effects[2]
+H_Effect <- H_Effects[3]
   
-for(k in 1:length(N_trials))  {
-N_trial  <- N_trials[k]  
-
-
 ### Creating the base file path for simulation ---------------------------------
 base_path <- paste0(getwd(), "/Output/",
                Z4.type, "/",
@@ -104,6 +100,8 @@ if (!dir.exists(base_path)) {
   dir.create(base_path)
 }
 
+for(k in 1:length(N_trials))  {
+N_trial  <- N_trials[k]  
 
 ### Simulation -----------------------------------------------------------------
 
@@ -235,6 +233,18 @@ cat(paste(
 )
 
 }
+
+t <- Plotting_Output(base_path, Outcome_SD)
+
+### Plots .jpg file
+plot_path <- paste0(base_path, "4-Plots/")
+if (!dir.exists(plot_path)) {
+  dir.create(plot_path)
+}
+ggsave(paste0(plot_path, 
+              "N_", N_trial, "-Noise_", Noise.Vars, "-OutcomeSD_", Outcome_SD,
+              "-Plot.jpg"))
+
   
 #}
   
@@ -271,7 +281,7 @@ base_path <- paste0(getwd(), "/Output/",
                Z4.type, "/",
                "TrtEff_", T_Effect, "-HetEff_", H_Effect, "/")
 
-file_names <- list.files(base_path, pattern = paste0("\\OutcomeSD_",Outcome_SD,".csv$"), full.names = TRUE)
+
 
 
 list_csvs <- lapply(file_names, read_csv)
