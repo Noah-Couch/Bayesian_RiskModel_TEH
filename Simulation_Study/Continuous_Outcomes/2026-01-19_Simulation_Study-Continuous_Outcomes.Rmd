@@ -271,7 +271,7 @@ base_path <- paste0(getwd(), "/Output/",
                Z4.type, "/",
                "TrtEff_", T_Effect, "-HetEff_", H_Effect, "/")
 
-file_names <- list.files(base_path, pattern = paste("\\OutcomeSD_", Outcome_SD,".csv$"), full.names = TRUE)
+file_names <- list.files(base_path, pattern = paste0("\\OutcomeSD_",Outcome_SD,".csv$"), full.names = TRUE)
 
 
 list_csvs <- lapply(file_names, read_csv)
