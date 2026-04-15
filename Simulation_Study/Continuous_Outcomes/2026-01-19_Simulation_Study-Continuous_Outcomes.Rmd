@@ -81,16 +81,16 @@ Heterogeneity_List <- list()
 
 Z4.type    <- Z4.types[1]         # Z4 Definition
 Noise.Vars <- Noise.Vars_list[1]  # Number of Noise Variables
-Outcome_SD <- Outcome_SDs[2]
+Outcome_SD <- Outcome_SDs[1]
 
 
 ### Looping over Simulation Parameters -----------------------------------------
 
-for(i in 1:length(T_Effects)) {
-T_Effect < T_Effects[i]
+#for(i in 1:length(T_Effects)) {
+T_Effect <- T_Effects[1]
 
-for(j in 1:length(H_Effects)) {
-H_Effect <- H_Effects[j]
+#for(j in 1:length(H_Effects)) {
+H_Effect <- H_Effects[2]
   
 for(k in 1:length(N_trials))  {
 N_trial  <- N_trials[k]  
@@ -169,7 +169,7 @@ R_hat_Risk <- lapply(Heterogeneity_List, `[[`, "R_hat_Risk")
 
 ### Results .csv file
 path <- paste0(base_path,
-               "N_", N_trial, "-Noise_", Noise.Vars, ".csv")
+               "N_", N_trial, "-Noise_", Noise.Vars, "-OutcomeSD_", Outcome_SD, ".csv")
 write_csv(Results, path)
 
 
@@ -179,7 +179,7 @@ if (!dir.exists(select_path)) {
   dir.create(select_path)
 }
 write_rds(Selection_Probability, paste0(select_path,
-               "N_", N_trial, "-Noise_", Noise.Vars,
+               "N_", N_trial, "-Noise_", Noise.Vars, "-OutcomeSD_", Outcome_SD,
                 "-SelectProb.rds"))
 
 
@@ -189,7 +189,7 @@ if (!dir.exists(VarSelect_path)) {
   dir.create(VarSelect_path)
 }
 write_rds(Variable_Selections, paste0(VarSelect_path,
-               "N_", N_trial, "-Noise_", Noise.Vars,
+               "N_", N_trial, "-Noise_", Noise.Vars, "-OutcomeSD_", Outcome_SD,
                 "-VarSelection.rds"))
 
 
@@ -200,7 +200,7 @@ if (!dir.exists(diag_path)) {
 }
 write_rds(list(R_hat_Risk, R_hat_Heterogeneity), 
           paste0(diag_path,
-                 "N_", N_trial, "-Noise_", Noise.Vars,
+                 "N_", N_trial, "-Noise_", Noise.Vars, "-OutcomeSD_", Outcome_SD,
                  "-Diag.rds"))
 
 
@@ -236,9 +236,9 @@ cat(paste(
 
 }
   
-}
+#}
   
-}
+#}
 
 
 #Results |>
@@ -271,7 +271,7 @@ base_path <- paste0(getwd(), "/Output/",
                Z4.type, "/",
                "TrtEff_", T_Effect, "-HetEff_", H_Effect, "/")
 
-file_names <- list.files(base_path, pattern = "\\.csv$", full.names = TRUE)
+file_names <- list.files(base_path, pattern = paste("\\OutcomeSD_", Outcome_SD,".csv$"), full.names = TRUE)
 
 
 list_csvs <- lapply(file_names, read_csv)
