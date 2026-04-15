@@ -9,7 +9,7 @@ SSVS_jags <- function(Trial_Data, Burn_in, Iterations, model_string.SSVS) {
   
   ### Checking for Columns -----------------------------------------------------
   
-  col_check <- c("PID", "Treatment", "Outcome", "Outcome_BL")
+  col_check <- c("PID", "Treatment", "Outcome", "Z3")
   if(all(col_check %in% colnames(Trial_Data))){} else{
     print("Trial Data should include 'PID', 'Treatment', and 'Outcome'")
     break
@@ -22,7 +22,7 @@ SSVS_jags <- function(Trial_Data, Burn_in, Iterations, model_string.SSVS) {
   ### Ordering of variables:
   ###     - Gender
   ###     - Age
-  ###     - Outcome_BL
+  ###     - Z3
   ###     - Prognostic Variable
   ###     - X1 (Noise)
   ###     - X2 (Noise)
@@ -33,7 +33,7 @@ SSVS_jags <- function(Trial_Data, Burn_in, Iterations, model_string.SSVS) {
     as.matrix()
   
   ### Outcome
-  delta_Y <- Trial_Data$Outcome - Trial_Data$Outcome_BL
+  delta_Y <- Trial_Data$Outcome - Trial_Data$Z3
   
   ### Data dimensions
   p <- ncol(X)

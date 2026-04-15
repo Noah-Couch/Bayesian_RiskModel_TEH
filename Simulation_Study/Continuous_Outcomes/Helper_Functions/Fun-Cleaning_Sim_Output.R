@@ -2,7 +2,7 @@
 ########################## Cleaning Simulation Output ##########################
 
 
-Clean_Output <- function(Trial_Data, Heterogeneity, Heterogeneity_Noise, Alternative_Methods, N_trial) {
+Clean_Output <- function(Trial_Data, Heterogeneity, Heterogeneity_Noise, Alternative_Results, N_trial, Noise.Vars) {
   
   if(any(Heterogeneity$Heterogeneity$Posterior_Means == "N/A")){
     return("N/A")
@@ -62,13 +62,13 @@ Clean_Output <- function(Trial_Data, Heterogeneity, Heterogeneity_Noise, Alterna
                          Lower.CI_Noise = HDI_Noise[1],
                          Upper.CI_Noise = HDI_Noise[2],
                          rejection.Risk_Noise = if_else(
-                           Noise.type == "Noise",
+                           Noise.Vars >= 1,
                            if_else(HDI_Noise[1] < 0 & 0 < HDI_Noise[2], 
                                    "Accept", "Reject"), 
                            NA),
                          Prediction_Error_Noise = Prediction_Error_Noise,
                          ### Interaction Model ---------------------------------
-                         rejection.interaction = if_else(Intx_pval < 0.05,
+                         rejection.interaction = if_else(Intx_pval < (0.05 / (4 + Noise.Vars)),
                                                          "Reject", "Accept"),
                          ### SDIR ----------------------------------------------
                          rejection.SDIR = if_else(SDIR_pval <= 0.05,                                                        

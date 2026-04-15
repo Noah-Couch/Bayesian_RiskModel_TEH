@@ -8,8 +8,8 @@ Eval_Heterogeneity <- function(Heterogeneity.Data, Burn_in, Iterations, model_st
   
   ### Checking for Columns -----------------------------------------------------
   
-  col_check <- c("PID", "Treatment", "Outcome", "Outcome_BL")
-  if(all(col_check %in% colnames(Trial_Data))){} else{
+  col_check <- c("PID", "Treatment", "Outcome", "Z3")
+  if(all(col_check %in% colnames(Heterogeneity.Data))){} else{
     print("Trial Data should include 'PID', 'Treatment', and 'Outcome'")
     break
   }
@@ -23,7 +23,7 @@ Eval_Heterogeneity <- function(Heterogeneity.Data, Burn_in, Iterations, model_st
     mutate(Interaction = Treatment * Risk) |>
     as.matrix()
   
-  delta_Y <- Heterogeneity.Data$Outcome - Heterogeneity.Data$Outcome_BL
+  delta_Y <- Heterogeneity.Data$Outcome - Heterogeneity.Data$Z3
   
   ### Data dimensions
   p <- ncol(X)
@@ -74,4 +74,4 @@ Eval_Heterogeneity <- function(Heterogeneity.Data, Burn_in, Iterations, model_st
               Intervals = HPDI,
               Heterogeneity = Heterogeneity,
               R_hat = R_hat))
-  }
+}

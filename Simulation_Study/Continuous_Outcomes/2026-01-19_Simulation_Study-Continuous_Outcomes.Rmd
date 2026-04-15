@@ -10,22 +10,23 @@ library(rjags)
 library(ggplot2)
 library(kableExtra)
 library(HDInterval)
-
-# reduce sample size (bayes improves small samp)
-# descretize/continuous risk
 ```
 
 ```{r}
 library(parallel)
-library(doParallel)
+library(doFuture)
 library(foreach)
+library(progressr)
+library(future)
 
 if(detectCores() >= 30) {
   numCores = 25
 }
 
-cl <- makeCluster(numCores)
-registerDoParallel(cl)
+registerDoFuture()
+plan(multisession, workers = numCores)
+
+handlers("progress")
 
 required_packages <- c("tidyverse", "rjags", "HDInterval")
 ```
@@ -49,40 +50,216 @@ source("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Hel
 ```
 
 ```{r}
-N_iter  <-1000 # Number of iterations
-N_trial <- 200
+### Simulation Size
+N_iter  <- 1000 # Number of iterations
 
+
+### MCMC definitions
 Iterations <- 2500
 Burn_in <- 2500
 
+
 ### Each Situation we wish to simulate through
-ProgVar.types <- c("Categorical", "Continuous") 
-Heterogeneity.types <- c("No_Heterogeneity", "Heterogeneity")
-Noise.types <- c("Noise", "No_Noise")
+Z4.types        <- c("Categorical", "Continuous")
+T_Effects       <- c(0.50, 1.00)
+H_Effects       <- c(0.00, 0.50, 1.00)
+Noise.Vars_list <- c(10)
+N_trials        <- c(50, 100, 200)
 
-### Generated trials
-Sim_Trials <- list()
 
-### Sim outcomes
+### Simulation outcomes
 Heterogeneity_List <- list()
-
-
-
-
-
-### Things to add to output --------------------------------------------
-### selection probs of models (individual and model) - Table x 2
-### point estimate of beta3 heterogeneity - Value
-### Trt Eff w/o intx (beta1) and Trt Eff w/ intx (beta1, 2, 3)
-###     - Identify
-### prediction error sum(y - y hat)^2/n noise + optimized
-### CI's for risk and intx model (freq)
-###     TRT Effect
-### TRT0 <- beta1 
-### TRT1 <- beta1 + beta3 RA for binary
-### TRT0 <- beta1 + beta3 (x - xbar - 1.5sd) or beta3 (X_Q25)
-### TRT1 <- beta1 + beta3 (x - xbar + 1.5sd) or beta3 (X_Q75)
 ```
+
+```{r}
+### Simulation Study -----------------------------------------------------------------
+
+
+
+### Declarations ---------------------------------------------------------------
+
+
+for(i in 1:length(H_Effects)) {
+
+Z4.type    <- Z4.types[1]         # Z4 Definition
+T_Effect   <- T_Effects[2]        # Treatment Effect
+H_Effect   <- H_Effects[i]        # Heterogeneity Effect
+Noise.Vars <- Noise.Vars_list[1]  # Number of Noise Variables
+N_trial    <- N_trials[1]         # Sample Size of Generated Trial
+
+### Creating the base file path for simulation
+base_path <- paste0(getwd(), "/Output/",
+               Z4.type, "/",
+               "TrtEff_", T_Effect, "-HetEff_", H_Effect, "/")
+if (!dir.exists(base_path)) {
+  dir.create(base_path)
+}
+
+
+### Simulation -----------------------------------------------------------------
+
+Heterogeneity_List <- with_progress({
+
+p <- progressor(along = 1:N_iter)
+
+foreach(i = 1:N_iter, .options.future = list(seed = TRUE,
+                                             packages = required_packages)                              ) %dofuture% {
+  
+  p(sprintf("iteration %d", i))
+  
+  Trial_Data <- Gen_Trial_Data(N_trial, 
+                               Z4.type, 
+                               Noise.Vars, 
+                               T_Effect = T_Effect, H_Effect = T_Effect, 
+                               Outcome_Var = 0.50)
+    
+  Heterogeneity <- Risk_Heterogeneity(Trial_Data, Burn_in, Iterations, 
+                                      SSVS_script = model_string.SSVS,
+                                      Risk_script = model_string.Risk, 
+                                      Heterogeneity_script = model_string.Heterogeneity)
+  
+  if(Noise.Vars >= 1) {
+    Heterogeneity_Noise <- Risk_Heterogeneity(Trial_Data, Burn_in, Iterations, 
+                                              SSVS_script = model_string.SSVS,
+                                              Risk_script = model_string.Risk, 
+                                              Heterogeneity_script = model_string.Heterogeneity,
+                                              Optimized = FALSE) 
+    }
+  
+  Alternative_Results <- Alternative_Methods(Trial_Data, Noise.Vars)
+  
+  Output <- Clean_Output(Trial_Data, 
+                         Heterogeneity, 
+                         Heterogeneity_Noise, 
+                         Alternative_Results, 
+                         N_trial, Noise.Vars)
+    
+  list(Output = Output,
+       Selection_Probability = if(is.null(Heterogeneity$Selection_Probability)) {"N/A"}
+                               else{Heterogeneity$Selection_Probability},
+       Variable_Selections = if(is.null(Heterogeneity$Variable_Selections)) {"N/A"}
+                               else{Heterogeneity$Variable_Selections},
+       R_hat_Heterogeneity = if(is.null(Heterogeneity$Heterogeneity$R_hat )) {"N/A"}
+                               else{Heterogeneity$Heterogeneity$R_hat},
+       R_hat_Risk = if(is.null(Heterogeneity$Risk$Risk$R_hat)) {"N/A"}
+                               else{Heterogeneity$Risk$Risk$R_hat})
+}
+
+})
+
+
+### Storing results separately -------------------------------------------------
+Results <- do.call(rbind, lapply(Heterogeneity_List, `[[`, "Output"))
+Selection_Probability <- lapply(Heterogeneity_List, `[[`, "Selection_Probability")
+Variable_Selections <- lapply(Heterogeneity_List, `[[`, "Variable_Selections")
+R_hat_Heterogeneity <- lapply(Heterogeneity_List, `[[`, "R_hat_Heterogeneity")
+R_hat_Risk <- lapply(Heterogeneity_List, `[[`, "R_hat_Risk")
+
+
+### Saving Results -------------------------------------------------------------
+
+### Results .csv file
+path <- paste0(base_path,
+               "N_", N_trial, "-Noise_", Noise.Vars, ".csv")
+write_csv(Results, path)
+
+
+### Selection Probability .rds file
+select_path <- paste0(base_path, "Selection_Probability/")
+if (!dir.exists(select_path)) {
+  dir.create(select_path)
+}
+write_rds(Selection_Probability, paste0(select_path,
+               "N_", N_trial, "-Noise_", Noise.Vars,
+                "-SelectProb.rds"))
+
+
+### Variable Selections .rds file
+VarSelect_path <- paste0(base_path, "Variable_Selection/")
+if (!dir.exists(VarSelect_path)) {
+  dir.create(VarSelect_path)
+}
+write_rds(Variable_Selections, paste0(VarSelect_path,
+               "N_", N_trial, "-Noise_", Noise.Vars,
+                "-VarSelection.rds"))
+
+
+### Diagnostics .rds files
+diag_path <- paste0(base_path, "Diagnostics/")
+if (!dir.exists(diag_path)) {
+  dir.create(diag_path)
+}
+write_rds(list(R_hat_Risk, R_hat_Heterogeneity), 
+          paste0(diag_path,
+                 "N_", N_trial, "-Noise_", Noise.Vars,
+                 "-Diag.rds"))
+
+
+### Printing Simulation Details ------------------------------------------------
+
+Summary_Print <- Results |>
+  summarise(
+    Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N_iter,
+    Power.Risk_Noise = sum(rejection.Risk_Noise == "Reject", na.rm = TRUE) / N_iter,
+    Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N_iter,
+    Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N_iter
+  )
+
+
+cat(paste(
+  "*****************************************************",
+  "\nSimulation Completed:\n",
+  "\nNumber of Iterations: ", N_iter," \n",
+  "    Trial Size: ", N_trial, "\n",
+  "    Treatment Effect: ", T_Effect, "; Heterogeneity Effect: ", H_Effect, "\n",
+  "   ", Z4.type, " Definition of Z4", "\n",
+  "   ", Noise.Vars, " Noise variables considered\n",
+  "\nPower Summary:", "\n",
+  "   Optimized Model: ", Summary_Print[1], "\n",
+  "   Non-optimized Model: ", Summary_Print[2], "\n",
+  "   Interaction: ", Summary_Print[3], "\n",
+  "   SDIR: ", Summary_Print[4], "\n",
+  "\n*****************************************************"
+  )
+)
+
+}
+
+
+#Results |>
+#  summarise(
+#    Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N_iter,
+#    Power.Risk_Noise = sum(rejection.Risk_Noise == "Reject", na.rm = TRUE) / N_iter,
+#    Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N_iter,
+#    Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N_iter,
+#    SSVS.X1 = sum(str_detect(SSVS_results, "X1")),
+#    SSVS.X2 = sum(str_detect(SSVS_results, "X2")),
+#    SSVS.X3 = sum(str_detect(SSVS_results, "X3")),
+#    SSVS.X4 = sum(str_detect(SSVS_results, "X4")),
+#    SSVS.X5 = sum(str_detect(SSVS_results, "X5")),
+#    SSVS.X6 = sum(str_detect(SSVS_results, "X6")),
+#    SSVS.X7 = sum(str_detect(SSVS_results, "X7")),
+#    SSVS.X8 = sum(str_detect(SSVS_results, "X8")),
+#    SSVS.X9 = sum(str_detect(SSVS_results, "X9")),
+#    SSVS.X10 = sum(str_detect(SSVS_results, "X10"))
+#  )
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -92,11 +269,11 @@ Heterogeneity_List <- list()
 ```{r}
 Noise.type         <- Noise.types[1]
 Heterogeneity.type <- Heterogeneity.types[1]
-ProgVar.type       <- ProgVar.types[1]
+Z4.type       <- Z4.types[1]
 
 Sim_Trials <- foreach(i = 1:N_iter, .packages = c("tidyverse")) %dopar% {
   seed <- 1000000 + i
-  Gen_Trial_Data(N_trial, seed, Heterogeneity.type, ProgVar.type, Noise.type)
+  Gen_Trial_Data(N_trial, seed, Heterogeneity.type, Z4.type, Noise.type)
 }
 ```
 
@@ -162,25 +339,25 @@ Results |>
 
 path <- paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/",
                "TrtEff0.50",
-               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, ".csv")
+               "N", N_trial, "-", Heterogeneity.type, "-", Z4.type, "-", Noise.type, ".csv")
 
 write_csv(Results, path)
 
 write_rds(Selection_Probability, paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/2-Selection_Probability/",
                "TrtEff0.50",
-               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-SelectProb.rds"))
+               "N", N_trial, "-", Heterogeneity.type, "-", Z4.type, "-", Noise.type, "-SelectProb.rds"))
 
 write_rds(R_hat_Heterogeneity, paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/1-Diagnostics/",
                "TrtEff0.50",
-               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-R_hat_Heterogeneity.rds"))
+               "N", N_trial, "-", Heterogeneity.type, "-", Z4.type, "-", Noise.type, "-R_hat_Heterogeneity.rds"))
 
 write_rds(Variable_Selections, paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/3-Variable_Selection/",
                "TrtEff0.50",
-               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-Variable_Selections.rds"))
+               "N", N_trial, "-", Heterogeneity.type, "-", Z4.type, "-", Noise.type, "-Variable_Selections.rds"))
 
 write_rds(R_hat_Risk, paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/1-Diagnostics/",
                "TrtEff0.50",
-               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-R_hat_Risk.rds"))
+               "N", N_trial, "-", Heterogeneity.type, "-", Z4.type, "-", Noise.type, "-R_hat_Risk.rds"))
 ```
 
 
@@ -193,13 +370,13 @@ source("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Hel
 ```{r}
 Heterogeneity.type <- Heterogeneity.types[2]
 Noise.type         <- Noise.types[1]
-ProgVar.type       <- ProgVar.types[1]
+Z4.type       <- Z4.types[1]
 
 N_trial <- 100
 
 Sim_Trials <- foreach(i = 1:N_iter, .packages = c("tidyverse")) %dopar% {
   seed <- 1000000 + i
-  Gen_Trial_Data(N_trial, seed, Heterogeneity.type, ProgVar.type, Noise.type)
+  Gen_Trial_Data(N_trial, seed, Heterogeneity.type, Z4.type, Noise.type)
 }
 ```
 
@@ -265,25 +442,25 @@ Results |>
 
 path <- paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/",
                "TrtEff0.50-HetEff1.00",
-               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, ".csv")
+               "N", N_trial, "-", Heterogeneity.type, "-", Z4.type, "-", Noise.type, ".csv")
 
 write_csv(Results, path)
 
 write_rds(Selection_Probability, paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/2-Selection_Probability/",
                "TrtEff0.50-HetEff1.00",
-               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-SelectProb.rds"))
+               "N", N_trial, "-", Heterogeneity.type, "-", Z4.type, "-", Noise.type, "-SelectProb.rds"))
 
 write_rds(R_hat_Heterogeneity, paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/1-Diagnostics/",
                "TrtEff0.50-HetEff1.00",
-               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-R_hat_Heterogeneity.rds"))
+               "N", N_trial, "-", Heterogeneity.type, "-", Z4.type, "-", Noise.type, "-R_hat_Heterogeneity.rds"))
 
 write_rds(Variable_Selections, paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/3-Variable_Selection/",
                "TrtEff0.50-HetEff1.00",
-               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-Variable_Selections.rds"))
+               "N", N_trial, "-", Heterogeneity.type, "-", Z4.type, "-", Noise.type, "-Variable_Selections.rds"))
 
 write_rds(R_hat_Risk, paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/1-Diagnostics/",
                "TrtEff0.50-HetEff1.00",
-               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-R_hat_Risk.rds"))
+               "N", N_trial, "-", Heterogeneity.type, "-", Z4.type, "-", Noise.type, "-R_hat_Risk.rds"))
 ```
 
 
@@ -301,13 +478,13 @@ write_rds(R_hat_Risk, paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/C
 ```{r}
 Noise.type         <- Noise.types[1]
 Heterogeneity.type <- Heterogeneity.types[1]
-ProgVar.type       <- ProgVar.types[2]
+Z4.type       <- Z4.types[2]
 
 N_trial <- 50
 
 Sim_Trials <- foreach(i = 1:N_iter, .packages = c("tidyverse")) %dopar% {
   seed <- 1000000 + i
-  Gen_Trial_Data(N_trial, seed, Heterogeneity.type, ProgVar.type, Noise.type)
+  Gen_Trial_Data(N_trial, seed, Heterogeneity.type, Z4.type, Noise.type)
 }
 ```
 
@@ -373,40 +550,40 @@ Results |>
 
 path <- paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/",
                "TrtEff0.50",
-               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, ".csv")
+               "N", N_trial, "-", Heterogeneity.type, "-", Z4.type, "-", Noise.type, ".csv")
 
 write_csv(Results, path)
 
 write_rds(Selection_Probability, paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/2-Selection_Probability/",
                "TrtEff0.50",
-               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-SelectProb.rds"))
+               "N", N_trial, "-", Heterogeneity.type, "-", Z4.type, "-", Noise.type, "-SelectProb.rds"))
 
 write_rds(R_hat_Heterogeneity, paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/1-Diagnostics/",
                "TrtEff0.50",
-               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-R_hat_Heterogeneity.rds"))
+               "N", N_trial, "-", Heterogeneity.type, "-", Z4.type, "-", Noise.type, "-R_hat_Heterogeneity.rds"))
 
 write_rds(Variable_Selections, paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/3-Variable_Selection/",
                "TrtEff0.50",
-               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-Variable_Selections.rds"))
+               "N", N_trial, "-", Heterogeneity.type, "-", Z4.type, "-", Noise.type, "-Variable_Selections.rds"))
 
 write_rds(R_hat_Risk, paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/1-Diagnostics/",
                "TrtEff0.50",
-               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-R_hat_Risk.rds"))
+               "N", N_trial, "-", Heterogeneity.type, "-", Z4.type, "-", Noise.type, "-R_hat_Risk.rds"))
 ```
 
 
-### 2. Heterogeneity -- Continuous Prognostic Variable -- Noise Variables
+### 4. Heterogeneity -- Continuous Prognostic Variable -- Noise Variables
 
 ```{r}
-Heterogeneity.type <- Heterogeneity.types[2]
-Noise.type         <- Noise.types[1]
-ProgVar.type       <- ProgVar.types[2]
+Noise.Vars         <- 10
+Z4.type       <- Z4.types[1]
 
-N_trial <- 200
+N_iter  <-1000 # Number of iterations
+N_trial <- 100
 
 Sim_Trials <- foreach(i = 1:N_iter, .packages = c("tidyverse")) %dopar% {
   seed <- 1000000 + i
-  Gen_Trial_Data(N_trial, seed, Heterogeneity.type, ProgVar.type, Noise.type)
+  Gen_Trial_Data(N_trial, seed, Z4.type, Noise.Vars, T_Effect = 1.00, H_Effect = 1.00)
 }
 ```
 
@@ -417,7 +594,7 @@ start_time <- Sys.time()
 
 ### Simulation
 Heterogeneity_List <- foreach(i = 1:N_iter, .packages = required_packages) %dopar% {
-    
+
   Trial_Data <- Sim_Trials[[i]]
     
   Heterogeneity <- Risk_Heterogeneity(Trial_Data, Burn_in, Iterations, 
@@ -467,30 +644,38 @@ Results |>
     Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N_iter,
     Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N_iter,
     SSVS.X1 = sum(str_detect(SSVS_results, "X1")),
-    SSVS.X2 = sum(str_detect(SSVS_results, "X2"))
+    SSVS.X2 = sum(str_detect(SSVS_results, "X2")),
+    SSVS.X3 = sum(str_detect(SSVS_results, "X3")),
+    SSVS.X4 = sum(str_detect(SSVS_results, "X4")),
+    SSVS.X5 = sum(str_detect(SSVS_results, "X5")),
+    SSVS.X6 = sum(str_detect(SSVS_results, "X6")),
+    SSVS.X7 = sum(str_detect(SSVS_results, "X7")),
+    SSVS.X8 = sum(str_detect(SSVS_results, "X8")),
+    SSVS.X9 = sum(str_detect(SSVS_results, "X9")),
+    SSVS.X10 = sum(str_detect(SSVS_results, "X10"))
   )
 
 path <- paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/",
                "TrtEff1.00-HetEff0.25",
-               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, ".csv")
+               "N", N_trial, "-", Heterogeneity.type, "-", Z4.type, "-", Noise.type, ".csv")
 
 write_csv(Results, path)
 
 write_rds(Selection_Probability, paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/2-Selection_Probability/",
                "TrtEff1.00-HetEff0.25",
-               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-SelectProb.rds"))
+               "N", N_trial, "-", Heterogeneity.type, "-", Z4.type, "-", Noise.type, "-SelectProb.rds"))
 
 write_rds(R_hat_Heterogeneity, paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/1-Diagnostics/",
                "TrtEff1.00-HetEff0.25",
-               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-R_hat_Heterogeneity.rds"))
+               "N", N_trial, "-", Heterogeneity.type, "-", Z4.type, "-", Noise.type, "-R_hat_Heterogeneity.rds"))
 
 write_rds(Variable_Selections, paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/3-Variable_Selection/",
                "TrtEff1.00-HetEff0.25",
-               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-Variable_Selections.rds"))
+               "N", N_trial, "-", Heterogeneity.type, "-", Z4.type, "-", Noise.type, "-Variable_Selections.rds"))
 
 write_rds(R_hat_Risk, paste0("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Output/1-Diagnostics/",
                "TrtEff1.00-HetEff0.25",
-               "N", N_trial, "-", Heterogeneity.type, "-", ProgVar.type, "-", Noise.type, "-R_hat_Risk.rds"))
+               "N", N_trial, "-", Heterogeneity.type, "-", Z4.type, "-", Noise.type, "-R_hat_Risk.rds"))
 ```
 
 

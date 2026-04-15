@@ -9,7 +9,7 @@ source("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Hel
 
 ############################ Generating Trial Data #############################
 
-Gen_Trial_Data <- function(N_trial, seed, Heterogeneity.type, ProgVar.type, Noise.type) {
+Gen_Trial_Data <- function(N_trial, Z4.type, Noise.Vars, T_Effect, H_Effect, Outcome_Var) {
   
   ### Patient Identification and Assignment ------------------------------------
   ### Simulated Study Design: Single treatment group v. control
@@ -27,12 +27,12 @@ Gen_Trial_Data <- function(N_trial, seed, Heterogeneity.type, ProgVar.type, Nois
   
   ### Generating Baseline Characteristics --------------------------------------
   
-  Simulated_Data <- generating_data(seed, PID, Treatment, ProgVar.type)
+  Simulated_Data <- generating_data(PID, Treatment, Z4.type)
   
   
   ### Generating Outcomes ------------------------------------------------------
   
-  Trial_Data <- calculating_Outcomes(Simulated_Data, Heterogeneity.type, ProgVar.type, Noise.type)
+  Trial_Data <- calculating_Outcomes(Simulated_Data, Noise.Vars, T_Effect, H_Effect, Outcome_Var)
   
   return(Trial_Data)
 }
