@@ -48,8 +48,6 @@ Plotting_Output <- function(base_path, Outcome_SD) {
   list_csvs <- lapply(file_names, read_csv)
   names(list_csvs) <- c(100, 200, 50)
   
-  t <- list_csvs[[1]]
-  
   Power <- map_dfr(list_csvs, function(df) {
     df |>
       summarise(

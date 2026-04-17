@@ -259,6 +259,31 @@ ggsave(paste0(plot_path,
        height = 1349, width = 2187, units = "px")
 
 
+file_names <- list.files(base_path, pattern = paste0("\\OutcomeSD_",Outcome_SD,".csv$"), full.names = TRUE)
+  
+list_csvs <- lapply(file_names, read_csv)
+names(list_csvs) <- c(100, 200, 50)
+
+Summary_Table <- data.frame(Power.Risk = rep(NA, length(list_csvs)),
+                            Power.Risk_Noise = rep(NA, length(list_csvs)),
+                            Power.MultInt = rep(NA, length(list_csvs)),
+                            Power.Intx = rep(NA, length(list_csvs)),
+                            Power.Intx_adj = rep(NA, length(list_csvs)),
+                            Power.SDIR = rep(NA, length(list_csvs)))
+
+for (m in 1:length(names(list_csvs))) {
+  Summary_Table[m,] <- list_csvs[[m]] |>
+    summarise(
+      Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N_iter,
+      Power.Risk_Noise = sum(rejection.Risk_Noise == "Reject", na.rm = TRUE) / N_iter,
+      Power.MultInt = sum(rejection.Opt_MultInt == "Reject", na.rm = TRUE) / N_iter,
+      Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N_iter,
+      Power.Intx_adj = sum(rejection.interaction_adj == "Reject", na.rm = TRUE) / N_iter,
+      Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N_iter
+    )
+  }
+
+
 ### WRITE AND SAVE CSV OF SELECTION PROB OF NOISE
 ### EACH TE AND HE
 
