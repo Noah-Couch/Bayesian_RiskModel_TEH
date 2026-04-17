@@ -11,7 +11,7 @@ source("~/Thesis/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-Risk
 source("~/Thesis/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-Risk_Heterogeneity.R")
 
 ### Optimized Multiple Interactions
-source("~/Thesis/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-Risk_Heterogeneity.R")
+source("~/Thesis/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-MultInteractions.R")
 
 
 

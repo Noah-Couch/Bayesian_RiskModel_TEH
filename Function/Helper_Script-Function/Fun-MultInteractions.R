@@ -10,6 +10,9 @@ Opt_MultInt <- function(Trial_Data, included, Burn_in, Iterations,
     break
   }
   
+  if(any(included == "N/A")) {
+    return(NA)
+  }
   
   ### Setting initial values ---------------------------------------------------
   
@@ -62,12 +65,10 @@ Opt_MultInt <- function(Trial_Data, included, Burn_in, Iterations,
   Samps <- JAGS_samps[[1]] |> rbind(JAGS_samps[[2]], JAGS_samps[[3]])
   
   Post_Means <- data.frame(t(colMeans(Samps)))
-  colnames(Post_Means) <- c("beta_Trt", included, 
-                            paste0("Interaction_", included), "beta0")
+  colnames(Post_Means) <- c(paste0("beta_", colnames(X)), "beta0")
   
   HPDI <- data.frame(hdi(Samps))
-  colnames(HPDI) <- c("beta_Trt", included, 
-                      paste0("Interaction_", included), "beta0")
+  colnames(HPDI) <- c(paste0("beta_", colnames(X)), "beta0")
   
   Int_CI <- HPDI |>
     as.data.frame() |>

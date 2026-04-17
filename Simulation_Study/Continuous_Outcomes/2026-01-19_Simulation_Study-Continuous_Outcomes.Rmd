@@ -262,6 +262,8 @@ ggsave(paste0(plot_path,
 #}
 
 
+Heterogeneity_List[[1]]
+
 #Results |>
 #  summarise(
 #    Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N_iter,
