@@ -82,7 +82,6 @@ Heterogeneity_List <- list()
 
 ### Declarations ---------------------------------------------------------------
 
-Z4.type    <- Z4.types[1]         # Z4 Definition
 Noise.Vars <- Noise.Vars_list[1]  # Number of Noise Variables
 Outcome_SD <- Outcome_SDs[1]
 Het_Type   <- Het_Types[1]
@@ -90,11 +89,15 @@ Het_Type   <- Het_Types[1]
 
 ### Looping over Simulation Parameters -----------------------------------------
 
-#for(i in 1:length(T_Effects)) {
-T_Effect <- T_Effects[1]
+for(h in 1:length(Z4.types)) {
 
-#for(j in 1:length(H_Effects)) {
-H_Effect <- H_Effects[2]
+Z4.type <- Z4.types[h]  # Z4 Definition  
+  
+for(i in 1:length(T_Effects)) {
+T_Effect <- T_Effects[i]
+
+for(j in 1:length(H_Effects)) {
+H_Effect <- H_Effects[j]
   
 ### Creating the base file path for simulation ---------------------------------
 base_path <- paste0(getwd(), "/Output/",
@@ -114,15 +117,15 @@ Heterogeneity_List <- with_progress({
 
 p <- progressor(along = 1:N_iter)
 
-foreach(i = 1:N_iter, .options.future = list(seed = TRUE,
+foreach(l = 1:N_iter, .options.future = list(seed = TRUE,
                                              packages = required_packages)                              ) %dofuture% {
   
-  p(sprintf("iteration %d", i))
+  p(sprintf("iteration %d", l))
   
   Trial_Data <- Gen_Trial_Data(N_trial, 
                                Z4.type, 
                                Noise.Vars, 
-                               T_Effect = T_Effect, H_Effect = T_Effect,
+                               T_Effect = T_Effect, H_Effect = H_Effect,
                                Het_Type = Het_Type,
                                Outcome_SD = Outcome_SD)
     
@@ -243,8 +246,7 @@ cat(paste(
 
 }
 
-source(paste0(getwd(), "/Helper_Functions/Fun-Plotting_Output.R"))
-t <- Plotting_Output(base_path, Outcome_SD); t
+Plot <- Plotting_Output(base_path, Outcome_SD); t
 
 ### Plots .jpg file
 plot_path <- paste0(base_path, "4-Plots/")
@@ -256,13 +258,18 @@ ggsave(paste0(plot_path,
               "-Plot.jpg"),
        height = 1349, width = 2187, units = "px")
 
-  
-#}
-  
-#}
 
+### WRITE AND SAVE CSV OF SELECTION PROB OF NOISE
+### EACH TE AND HE
 
-Heterogeneity_List[[1]]
+}
+  
+### WRITE AND SAVE CSV OF SUMM TABLE
+### ALL TE AND ONE HE
+
+}
+
+}
 
 #Results |>
 #  summarise(
@@ -284,39 +291,3 @@ Heterogeneity_List[[1]]
 ```
 
 
-```{r}
-
-
-base_path <- paste0(getwd(), "/Output/",
-               Z4.type, "/",
-               "TrtEff_", T_Effect, "-HetEff_", H_Effect, "/")
-
-
-
-
-list_csvs <- lapply(file_names, read_csv)
-names(list_csvs) <- c(100, 200, 50)
-
-Power <- map_dfr(list_csvs, function(df) {
-  df |>
-    summarise(
-      Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N_iter,
-      Power.Risk_Noise = sum(rejection.Risk_Noise == "Reject", na.rm = TRUE) / N_iter,
-      Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N_iter,
-      Power.Intx_adj = sum(rejection.interaction_adj == "Reject", na.rm = TRUE) / N_iter,
-      Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N_iter
-      ) },
-  .id = "N") |>
-  mutate(N = as.numeric(N))
-
-Power |>
-  pivot_longer(
-    cols = starts_with("Power"),
-    names_to = "Method",
-    values_to = "Power"
-  ) |>
-  mutate(Method = str_remove(Method, "Power.")) |>
-  ggplot(aes(x = N, y = Power, colour = Method)) +
-  geom_point() +
-  geom_line()
-```
