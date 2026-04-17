@@ -35,7 +35,6 @@ Clean_Output <- function(Trial_Data, Heterogeneity, Heterogeneity_Noise, Alterna
   ### From risk (noise) model
   Prediction_Error_Noise <- sum((Trial_Data$Outcome - Heterogeneity_Noise$Risk$Risk$Risk)^2) / N_trial
   
-  
   ### Defining Alternative Methods to Heterogeneity Outcomes--------------------
   
   ### From interaction model
@@ -67,6 +66,9 @@ Clean_Output <- function(Trial_Data, Heterogeneity, Heterogeneity_Noise, Alterna
                                    "Accept", "Reject"), 
                            NA),
                          Prediction_Error_Noise = Prediction_Error_Noise,
+                         ### Multiple Interactions (Optimized) -----------------
+                         rejection.Opt_MultInt = if_else(Heterogeneity$Rejection_OptMultInt,
+                                                         "Reject", "Accept"),
                          ### Interaction Model ---------------------------------
                          rejection.interaction = if_else(Intx_pval < 0.05,
                                                          "Reject", "Accept"),

@@ -1,7 +1,7 @@
 
 ########################## Alternative Methods to TEH ##########################
 
-Alternative_Methods <- function(Trial_Data, Noise.Vars) {
+Alternative_Methods <- function(Trial_Data, Noise.Vars, Het_Type) {
   
   ### Calculating Interaction p-value ------------------------------------------
   
@@ -13,6 +13,20 @@ Alternative_Methods <- function(Trial_Data, Noise.Vars) {
                 data = Trial_Data)
   
   pval.PgV <- summary(mod.PgV)$coefficients[7+Noise.Vars,4]
+  
+  if(Het_Type == "linComb") {
+    formula_str2 <- paste("Outcome ~ Treatment * Z2 + Z1 + Z3 + Z4 +", noise_str)
+    
+    
+    mod.PgV2 <- lm(as.formula(formula_str2),
+                  data = Trial_Data)
+    
+    pval.PgV2 <- summary(mod.PgV)$coefficients[7+Noise.Vars,4]
+    
+    pval.PgV <- min(pval.PgV, pval.PgV2)
+  }
+  
+  
   
   ### Calculating SDIR p-value -------------------------------------------------
   

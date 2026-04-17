@@ -10,18 +10,22 @@ source("~/Thesis/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-Risk
 ### Evaluate Heterogeneity
 source("~/Thesis/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-Risk_Heterogeneity.R")
 
+### Optimized Multiple Interactions
+source("~/Thesis/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-Risk_Heterogeneity.R")
+
 
 
 ################## Full Function for Evaluating Heterogeneity ##################
 
 Risk_Heterogeneity <- function(Trial_Data, Burn_in, Iterations, 
-                               SSVS_script, Risk_script, Heterogeneity_script,
+                               SSVS_script, Risk_script, Heterogeneity_script, MultInt_script,
                                Optimized = TRUE) {
   
   ### Using Stochastic Search Variable Selection (SSVS) to select prognostic variables
   if(Optimized == TRUE) {
     SSVS_results <- SSVS_jags(Trial_Data, Burn_in, Iterations, model_string.SSVS = SSVS_script)
     included <- SSVS_results$included # Variables selected through SSVS
+    
     ### Checking for included to not be empty
     if (any(included == "N/A")){
       summary <- list(Heterogeneity = list(Posterior_Means = "N/A",
@@ -38,10 +42,16 @@ Risk_Heterogeneity <- function(Trial_Data, Burn_in, Iterations,
                       Selection_Probability = "N/A",
                       Variable_Selections = "N/A",
                       Iterations = "N/A",
-                      Samples = "N/A")
+                      Samples = "N/A",
+                      Rejection_OptMultInt = "N/A")
       return(summary)
       
     }
+    
+    ### Evaluating treatment effect heterogeneity from multiple interactions on selected variables
+    Rejection_OptMultInt <- Opt_MultInt(Trial_Data, included, Burn_in, Iterations,
+                                        MultInt_script)
+  
   } else {
     included = "0"
   }
@@ -68,7 +78,8 @@ Risk_Heterogeneity <- function(Trial_Data, Burn_in, Iterations,
                     Selection_Probability = (SSVS_results$Selection_Probability),
                     Variable_Selections = (SSVS_results$Variable_Selections),
                     Iterations = Iterations,
-                    Samples = Iterations * 4)
+                    Samples = Iterations * 4,
+                    Rejection_OptMultInt = Rejection_OptMultInt)
   } else {
     summary <- list(Heterogeneity = Heterogeneity,
                     Risk = list(Risk = (Risk),
@@ -79,8 +90,5 @@ Risk_Heterogeneity <- function(Trial_Data, Burn_in, Iterations,
                     Samples = Iterations * 4)
   }
                      
-                     
-  
-  
   return(summary)
 }

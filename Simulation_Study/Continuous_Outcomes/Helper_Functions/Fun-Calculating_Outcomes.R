@@ -1,21 +1,33 @@
 
 ############################# Generating Outcomes ##############################
 
-calculating_Outcomes <- function(Simulated_Data, Noise.Vars, T_Effect, H_Effect, Outcome_SD) {
+calculating_Outcomes <- function(Simulated_Data, Noise.Vars, T_Effect, H_Effect,
+                                 Het_Type,
+                                 Outcome_SD) {
   
   ### Generating Outcomes ------------------------------------------------------
+  
+  
+  
+  
   
   ### Calculating Trial Outcome
   Trial_Data <- Simulated_Data |>
     rowwise() |>
-    mutate(mu = Z3 +
-             1.00 + 
-             T_Effect * Treatment + 
-             0.75 * Z4 + 
-             H_Effect * Treatment * Z4 + 
-             -0.75 * Z1 +
-             -0.75 * Z2, #+
-             #rnorm(1, mean = 0, sd = 0.5),
+    mutate(mu = if_else(Het_Type == "uniVar",
+                        Z3 + 1.00 + 
+                          T_Effect * Treatment + 
+                          0.75 * Z4 + 
+                          H_Effect * Treatment * Z4 + 
+                          -0.75 * Z1 +
+                          -0.75 * Z2,
+                        Het_Type == "linComb", 
+                        Z3 + 1.00 +
+                          T_Effect * Treatment + 
+                          0.75 * Z4 + 
+                          H_Effect * Treatment * (0.5 * Z4 + 0.5 * Z2) + 
+                          -0.75 * Z1 +
+                          -0.75 * Z2,),
            Outcome = rnorm(1, mean = mu, sd = Outcome_SD)
            ) |>
     select(-c(mu))

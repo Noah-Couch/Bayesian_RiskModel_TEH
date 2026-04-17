@@ -1,4 +1,47 @@
 
+require(purrr)
+require(ggplot2)
+require(ggrepel)
+require(ggtext)
+
+theme_set(theme_minimal(base_family = "Lato"))
+
+theme_update(
+  # Remove the grid lines that come with ggplot2 plots by default
+  panel.grid = element_blank(),
+  # Customize margin values (top, right, bottom, left)
+  plot.margin = margin(20, 40, 20, 40),
+  # Use a light grey color for the background of both the plot and the panel
+  plot.background = element_rect(fill = "white", color = "white"),
+  panel.background = element_rect(fill = "white", color = "white"),
+  # Customize title appearence
+  plot.title = element_text(
+    color = "grey10", 
+    size = 28, 
+    face = "bold",
+    margin = margin(t = 15)
+  ),
+  # Customize subtitle appearence
+  plot.subtitle = element_markdown(
+    color = "grey30", 
+    size = 16,
+    lineheight = 1.35,
+    margin = margin(t = 15, b = 40)
+  ),
+  # Title and caption are going to be aligned
+  plot.title.position = "plot",
+  plot.caption.position = "plot",
+  plot.caption = element_text(
+    color = "grey30", 
+    size = 13,
+    lineheight = 1.2, 
+    hjust = 0,
+    margin = margin(t = 40) # Large margin on the top of the caption.
+  ),
+  # Remove legend
+  legend.position = "none"
+)
+
 Plotting_Output <- function(base_path, Outcome_SD) {
   file_names <- list.files(base_path, pattern = paste0("\\OutcomeSD_",Outcome_SD,".csv$"), full.names = TRUE)
   
@@ -76,7 +119,7 @@ Plotting_Output <- function(base_path, Outcome_SD) {
       limits = c(40, 275), 
       breaks = seq(50, 200, by = 50)
     ) +
-    scale_color_manual(values = c("TRUE" = "red", "FALSE" = "gray"))+
+    scale_color_manual(values = c("TRUE" = "red", "FALSE" = "#48494B"))+
     guides(color = "none") +
     xlab("Sample Size, N") +
     ylab("Power")

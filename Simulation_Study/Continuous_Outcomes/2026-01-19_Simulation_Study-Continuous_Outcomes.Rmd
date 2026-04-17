@@ -47,6 +47,8 @@ source("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Hel
 ### Cleaning Simulation Output
 source("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Helper_Functions/Fun-Cleaning_Sim_Output.R")
 
+### Plotting Output
+source(paste0(getwd(), "/Helper_Functions/Fun-Plotting_Output.R"))
 ```
 
 ```{r}
@@ -66,6 +68,7 @@ H_Effects       <- c(0.00, 0.50, 1.00)
 Noise.Vars_list <- c(10)
 Outcome_SDs     <- c(0.50, 1.00)
 N_trials        <- c(50, 100, 200)
+Het_Types       <- c("uniVar", "linComb")
 
 
 ### Simulation outcomes
@@ -82,22 +85,24 @@ Heterogeneity_List <- list()
 Z4.type    <- Z4.types[1]         # Z4 Definition
 Noise.Vars <- Noise.Vars_list[1]  # Number of Noise Variables
 Outcome_SD <- Outcome_SDs[1]
+Het_Type   <- Het_Types[1]
 
 
 ### Looping over Simulation Parameters -----------------------------------------
 
 #for(i in 1:length(T_Effects)) {
-T_Effect <- T_Effects[2]
+T_Effect <- T_Effects[1]
 
 #for(j in 1:length(H_Effects)) {
-H_Effect <- H_Effects[3]
+H_Effect <- H_Effects[2]
   
 ### Creating the base file path for simulation ---------------------------------
 base_path <- paste0(getwd(), "/Output/",
+               Het_Type, "/",
                Z4.type, "/",
                "TrtEff_", T_Effect, "-HetEff_", H_Effect, "/")
 if (!dir.exists(base_path)) {
-  dir.create(base_path)
+  dir.create(base_path, recursive = TRUE)
 }
 
 for(k in 1:length(N_trials))  {
@@ -117,13 +122,15 @@ foreach(i = 1:N_iter, .options.future = list(seed = TRUE,
   Trial_Data <- Gen_Trial_Data(N_trial, 
                                Z4.type, 
                                Noise.Vars, 
-                               T_Effect = T_Effect, H_Effect = T_Effect, 
+                               T_Effect = T_Effect, H_Effect = T_Effect,
+                               Het_Type = Het_Type,
                                Outcome_SD = Outcome_SD)
     
   Heterogeneity <- Risk_Heterogeneity(Trial_Data, Burn_in, Iterations, 
                                       SSVS_script = model_string.SSVS,
                                       Risk_script = model_string.Risk, 
-                                      Heterogeneity_script = model_string.Heterogeneity)
+                                      Heterogeneity_script = model_string.Heterogeneity,
+                                      MultInt_script = model_string.MultInt)
   
   if(Noise.Vars >= 1) {
     Heterogeneity_Noise <- Risk_Heterogeneity(Trial_Data, Burn_in, Iterations, 
@@ -133,7 +140,7 @@ foreach(i = 1:N_iter, .options.future = list(seed = TRUE,
                                               Optimized = FALSE) 
     }
   
-  Alternative_Results <- Alternative_Methods(Trial_Data, Noise.Vars)
+  Alternative_Results <- Alternative_Methods(Trial_Data, Noise.Vars, Het_Type = Het_Type)
   
   Output <- Clean_Output(Trial_Data, 
                          Heterogeneity, 
@@ -208,6 +215,7 @@ Summary_Print <- Results |>
   summarise(
     Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N_iter,
     Power.Risk_Noise = sum(rejection.Risk_Noise == "Reject", na.rm = TRUE) / N_iter,
+    Power.MultInt = sum(rejection.Opt_MultInt == "Reject", na.rm = TRUE) / N_iter,
     Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N_iter,
     Power.Intx_adj = sum(rejection.interaction_adj == "Reject", na.rm = TRUE) / N_iter,
     Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N_iter
@@ -225,16 +233,18 @@ cat(paste(
   "\nPower Summary:", "\n",
   "   Optimized Model: ", Summary_Print[1], "\n",
   "   Non-optimized Model: ", Summary_Print[2], "\n",
-  "   Interaction: ", Summary_Print[3], "\n",
-  "   Interaction (Adjusted):", Summary_Print[4], "\n",
-  "   SDIR: ", Summary_Print[5], "\n",
+  "   Multiple Interaction: ", Summary_Print[3], "\n",
+  "   Interaction: ", Summary_Print[4], "\n",
+  "   Interaction (Adjusted):", Summary_Print[5], "\n",
+  "   SDIR: ", Summary_Print[6], "\n",
   "\n*****************************************************"
   )
 )
 
 }
 
-t <- Plotting_Output(base_path, Outcome_SD)
+source(paste0(getwd(), "/Helper_Functions/Fun-Plotting_Output.R"))
+t <- Plotting_Output(base_path, Outcome_SD); t
 
 ### Plots .jpg file
 plot_path <- paste0(base_path, "4-Plots/")
@@ -242,8 +252,9 @@ if (!dir.exists(plot_path)) {
   dir.create(plot_path)
 }
 ggsave(paste0(plot_path, 
-              "N_", N_trial, "-Noise_", Noise.Vars, "-OutcomeSD_", Outcome_SD,
-              "-Plot.jpg"))
+              "Noise_", Noise.Vars, "-OutcomeSD_", Outcome_SD,
+              "-Plot.jpg"),
+       height = 1349, width = 2187, units = "px")
 
   
 #}
@@ -272,10 +283,7 @@ ggsave(paste0(plot_path,
 
 
 ```{r}
-library(purrr)
-library(ggplot2)
-library(ggrepel)
-library(ggtext)
+
 
 base_path <- paste0(getwd(), "/Output/",
                Z4.type, "/",
