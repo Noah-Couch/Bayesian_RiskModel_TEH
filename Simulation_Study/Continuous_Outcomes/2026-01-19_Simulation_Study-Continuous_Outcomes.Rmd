@@ -48,12 +48,12 @@ source("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Hel
 source("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Helper_Functions/Fun-Cleaning_Sim_Output.R")
 
 ### Plotting Output
-source(paste0(getwd(), "/Helper_Functions/Fun-Plotting_Output.R"))
+source(paste0(getwd(), "/Helper_Functions/Fun-Summary_Output.R"))
 ```
 
 ```{r}
 ### Simulation Size
-N_iter  <- 1000 # Number of iterations
+N_iter  <- 50 # Number of iterations
 
 
 ### MCMC definitions
@@ -89,15 +89,15 @@ Het_Type   <- Het_Types[1]
 
 ### Looping over Simulation Parameters -----------------------------------------
 
-for(h in 1:length(Z4.types)) {
+#for(h in 1:length(Z4.types)) {
 
-Z4.type <- Z4.types[h]  # Z4 Definition  
+Z4.type <- Z4.types[1]  # Z4 Definition  
   
-for(i in 1:length(T_Effects)) {
-T_Effect <- T_Effects[i]
+for(i in 1:length(H_Effects)) {
+H_Effect <- H_Effects[i]
 
-for(j in 1:length(H_Effects)) {
-H_Effect <- H_Effects[j]
+for(j in 1:length(T_Effects)) {
+T_Effect <- T_Effects[j]
   
 ### Creating the base file path for simulation ---------------------------------
 base_path <- paste0(getwd(), "/Output/",
@@ -244,9 +244,11 @@ cat(paste(
   )
 )
 
-}
+} # Sample Sizes
 
-Plot <- Plotting_Output(base_path, Outcome_SD); t
+Summary <- Summary_Output(base_path, Outcome_SD, N_iter)
+
+Plot <- Summary$Plot
 
 ### Plots .jpg file
 plot_path <- paste0(base_path, "4-Plots/")
@@ -258,61 +260,29 @@ ggsave(paste0(plot_path,
               "-Plot.jpg"),
        height = 1349, width = 2187, units = "px")
 
+Power_Table <- Summary$Power
+table_path <- paste0(base_path, "5-Tables/")
+if (!dir.exists(table_path)) {
+  dir.create(table_path)
+}
+write_csv(Power_Table,
+          paste0(table_path, 
+              "Noise_", Noise.Vars, "-OutcomeSD_", Outcome_SD,
+              "-Power.csv"))
 
-file_names <- list.files(base_path, pattern = paste0("\\OutcomeSD_",Outcome_SD,".csv$"), full.names = TRUE)
+Var_Selection_Table <- Summary$Var_Selection
+write_csv(Var_Selection_Table,
+          paste0(table_path, 
+              "Noise_", Noise.Vars, "-OutcomeSD_", Outcome_SD,
+              "-Var_Selection.csv"))
   
-list_csvs <- lapply(file_names, read_csv)
-names(list_csvs) <- c(100, 200, 50)
-
-Summary_Table <- data.frame(Power.Risk = rep(NA, length(list_csvs)),
-                            Power.Risk_Noise = rep(NA, length(list_csvs)),
-                            Power.MultInt = rep(NA, length(list_csvs)),
-                            Power.Intx = rep(NA, length(list_csvs)),
-                            Power.Intx_adj = rep(NA, length(list_csvs)),
-                            Power.SDIR = rep(NA, length(list_csvs)))
-
-for (m in 1:length(names(list_csvs))) {
-  Summary_Table[m,] <- list_csvs[[m]] |>
-    summarise(
-      Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N_iter,
-      Power.Risk_Noise = sum(rejection.Risk_Noise == "Reject", na.rm = TRUE) / N_iter,
-      Power.MultInt = sum(rejection.Opt_MultInt == "Reject", na.rm = TRUE) / N_iter,
-      Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N_iter,
-      Power.Intx_adj = sum(rejection.interaction_adj == "Reject", na.rm = TRUE) / N_iter,
-      Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N_iter
-    )
-  }
+  } #TE
 
 
-### WRITE AND SAVE CSV OF SELECTION PROB OF NOISE
-### EACH TE AND HE
+} #HE
 
-}
-  
-### WRITE AND SAVE CSV OF SUMM TABLE
-### ALL TE AND ONE HE
+#}
 
-}
-
-}
-
-#Results |>
-#  summarise(
-#    Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N_iter,
-#    Power.Risk_Noise = sum(rejection.Risk_Noise == "Reject", na.rm = TRUE) / N_iter,
-#    Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N_iter,
-#    Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N_iter,
-#    SSVS.X1 = sum(str_detect(SSVS_results, "X1")),
-#    SSVS.X2 = sum(str_detect(SSVS_results, "X2")),
-#    SSVS.X3 = sum(str_detect(SSVS_results, "X3")),
-#    SSVS.X4 = sum(str_detect(SSVS_results, "X4")),
-#    SSVS.X5 = sum(str_detect(SSVS_results, "X5")),
-#    SSVS.X6 = sum(str_detect(SSVS_results, "X6")),
-#    SSVS.X7 = sum(str_detect(SSVS_results, "X7")),
-#    SSVS.X8 = sum(str_detect(SSVS_results, "X8")),
-#    SSVS.X9 = sum(str_detect(SSVS_results, "X9")),
-#    SSVS.X10 = sum(str_detect(SSVS_results, "X10"))
-#  )
 ```
 
 

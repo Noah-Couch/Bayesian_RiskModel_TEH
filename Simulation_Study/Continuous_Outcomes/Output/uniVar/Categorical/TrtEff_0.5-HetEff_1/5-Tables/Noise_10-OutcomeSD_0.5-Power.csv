@@ -1,0 +1,4 @@
+N,Power.Risk,Power.Risk_Noise,Power.MultInt,Power.Intx,Power.Intx_adj,Power.SDIR
+100,0.76,0.74,1,1,0.94,0.24
+200,0.92,0.92,1,1,1,0.38
+50,0.42,0.24,0.88,0.84,0.4,0.1

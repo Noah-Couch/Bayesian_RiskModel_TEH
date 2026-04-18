@@ -42,7 +42,7 @@ theme_update(
   legend.position = "none"
 )
 
-Plotting_Output <- function(base_path, Outcome_SD) {
+Summary_Output <- function(base_path, Outcome_SD, N_iter) {
   file_names <- list.files(base_path, pattern = paste0("\\OutcomeSD_",Outcome_SD,".csv$"), full.names = TRUE)
   
   list_csvs <- lapply(file_names, read_csv)
@@ -131,8 +131,35 @@ Plotting_Output <- function(base_path, Outcome_SD) {
     xlab("Sample Size, N") +
     ylab("Power")
   
+ 
   
-  return(Plot)
+  Var_Selection <- map_dfr(list_csvs, function(df) {
+    df |>
+      summarise(
+        SSVS.X1 = sum(str_detect(SSVS_results, "X1")) / N_iter,
+        SSVS.X2 = sum(str_detect(SSVS_results, "X2")) / N_iter,
+        SSVS.X3 = sum(str_detect(SSVS_results, "X3")) / N_iter,
+        SSVS.X4 = sum(str_detect(SSVS_results, "X4")) / N_iter,
+        SSVS.X5 = sum(str_detect(SSVS_results, "X5")) / N_iter,
+        SSVS.X6 = sum(str_detect(SSVS_results, "X6")) / N_iter,
+        SSVS.X7 = sum(str_detect(SSVS_results, "X7")) / N_iter,
+        SSVS.X8 = sum(str_detect(SSVS_results, "X8")) / N_iter,
+        SSVS.X9 = sum(str_detect(SSVS_results, "X9")) / N_iter,
+        SSVS.X10 = sum(str_detect(SSVS_results, "X10") / N_iter)
+      ) },
+    .id = "N") |>
+    mutate(N = as.numeric(N))
+  
+  
+  
+  
+  return(list(Plot = Plot,
+              Power = Power,
+              Var_Selection = Var_Selection))
 }
+
+
+
+
 
 
