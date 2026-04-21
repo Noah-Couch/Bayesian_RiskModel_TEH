@@ -20,7 +20,7 @@ library(progressr)
 library(future)
 
 if(detectCores() >= 30) {
-  numCores = 25
+  numCores = 10
 }
 
 registerDoFuture()
@@ -53,7 +53,7 @@ source(paste0(getwd(), "/Helper_Functions/Fun-Summary_Output.R"))
 
 ```{r}
 ### Simulation Size
-N_iter  <- 50 # Number of iterations
+N_iter  <- 1000 # Number of iterations
 
 
 ### MCMC definitions
@@ -89,9 +89,9 @@ Het_Type   <- Het_Types[1]
 
 ### Looping over Simulation Parameters -----------------------------------------
 
-#for(h in 1:length(Z4.types)) {
+for(h in 1:length(Z4.types)) {
 
-Z4.type <- Z4.types[1]  # Z4 Definition  
+Z4.type <- Z4.types[h]  # Z4 Definition  
   
 for(i in 1:length(H_Effects)) {
 H_Effect <- H_Effects[i]
@@ -281,7 +281,7 @@ write_csv(Var_Selection_Table,
 
 } #HE
 
-#}
+}
 
 ```
 

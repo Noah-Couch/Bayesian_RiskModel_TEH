@@ -53,7 +53,7 @@ Summary_Output <- function(base_path, Outcome_SD, N_iter) {
       summarise(
         Power.Risk = sum(rejection.Risk == "Reject", na.rm = TRUE) / N_iter,
         Power.Risk_Noise = sum(rejection.Risk_Noise == "Reject", na.rm = TRUE) / N_iter,
-        Power.MultInt = sum(rejection.Opt_MultInt == "Reject", na.rm = TRUE) / N_iter,
+        #Power.MultInt = sum(rejection.Opt_MultInt == "Reject", na.rm = TRUE) / N_iter,
         Power.Intx = sum(rejection.interaction == "Reject", na.rm = TRUE) / N_iter,
         Power.Intx_adj = sum(rejection.interaction_adj == "Reject", na.rm = TRUE) / N_iter,
         Power.SDIR = sum(rejection.SDIR == "Reject", na.rm = TRUE) / N_iter
@@ -71,7 +71,7 @@ Summary_Output <- function(base_path, Outcome_SD, N_iter) {
     mutate(
       Method = case_when(Method == "Risk" ~ "Optimized Model",
                          Method == "Risk_Noise" ~ "Non-optimized Model",
-                         Method == "MultInt" ~ "Optimized Multiple Interactions",
+                         #Method == "MultInt" ~ "Optimized Multiple Interactions",
                          Method == "Intx" ~ "Interaction",
                          Method == "Intx_adj" ~ "Interaction (Adjusted)",
                          TRUE ~ Method
