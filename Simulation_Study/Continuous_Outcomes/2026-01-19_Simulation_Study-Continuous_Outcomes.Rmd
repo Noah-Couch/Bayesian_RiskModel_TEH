@@ -20,7 +20,7 @@ library(progressr)
 library(future)
 
 if(detectCores() >= 30) {
-  numCores = 10
+  numCores = 25
 }
 
 registerDoFuture()
