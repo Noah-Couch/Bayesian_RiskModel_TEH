@@ -94,7 +94,7 @@ for(h in 1:length(Z4.types)) {
 Z4.type <- Z4.types[h]  # Z4 Definition  
   
 for(i in 1:length(H_Effects)) {
-H_Effect <- H_Effects[i]
+H_Effect <- 0.25 #_Effects[i]
 
 for(j in 1:length(T_Effects)) {
 T_Effect <- T_Effects[j]
