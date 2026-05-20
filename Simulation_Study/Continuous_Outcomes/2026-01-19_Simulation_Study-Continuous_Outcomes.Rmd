@@ -64,7 +64,7 @@ Burn_in <- 25
 ### Each Situation we wish to simulate through
 Z4.types        <- c("Categorical", "Continuous")
 T_Effects       <- c(0.50, 1.00)
-H_Effects       <- c(0.00, 0.50, 1.00)
+H_Effects       <- c(0.00, 0.25,  0.50, 1.00)
 Noise.Vars_list <- c(10)
 Outcome_SDs     <- c(0.50, 1.00)
 N_trials        <- c(30, 50, 100, 150, 200)
