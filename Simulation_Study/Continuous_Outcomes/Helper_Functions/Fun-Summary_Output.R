@@ -38,6 +38,7 @@ theme_update(
     hjust = 0,
     margin = margin(t = 40) # Large margin on the top of the caption.
   ),
+  axis.title = element_text(size = 18),
   # Remove legend
   legend.position = "none"
 )
@@ -46,7 +47,7 @@ Summary_Output <- function(base_path, Outcome_SD, N_iter) {
   file_names <- list.files(base_path, pattern = paste0("\\OutcomeSD_",Outcome_SD,".csv$"), full.names = TRUE)
   
   list_csvs <- lapply(file_names, read_csv)
-  names(list_csvs) <- c(100, 200, 50)
+  names(list_csvs) <- c(100, 150, 200, 30, 50)
   
   Power <- map_dfr(list_csvs, function(df) {
     df |>
@@ -79,21 +80,20 @@ Summary_Output <- function(base_path, Outcome_SD, N_iter) {
     ) |> 
     mutate(label = if_else(N == max(N), Method, NA_character_)) |>
     ggplot(aes(x = N, y = Power, group = Method)) + 
-    # Geometric annotations that play the role of grid lines
     geom_vline(
-      xintercept = seq(50, 200, by = 25),
+      xintercept = seq(0, 200, by = 25),
       color = "grey91", 
       size = .6
     ) +
     geom_segment(
-      data = tibble(y = seq(0, 1, by = 0.25), x1 = 40, x2 = 200),
+      data = tibble(y = seq(0, 1, by = 0.25), x1 = 10, x2 = 200),
       aes(x = x1, xend = x2, y = y, yend = y),
       inherit.aes = FALSE,
       color = "grey91",
       size = .6
     ) +
     geom_segment(
-      data = tibble(y = 0, x1 = 40, x2 = 200),
+      data = tibble(y = 0, x1 = 10, x2 = 200),
       aes(x = x1, xend = x2, y = y, yend = y),
       inherit.aes = FALSE,
       color = "grey60",
@@ -118,7 +118,7 @@ Summary_Output <- function(base_path, Outcome_SD, N_iter) {
                     na.rm = TRUE) +
     scale_x_continuous(
       expand = c(0, 0),
-      limits = c(40, 300), 
+      limits = c(10, 300), 
       breaks = seq(50, 200, by = 50)
     ) +
     scale_y_continuous(
@@ -130,8 +130,6 @@ Summary_Output <- function(base_path, Outcome_SD, N_iter) {
     guides(color = "none") +
     xlab("Sample Size, N") +
     ylab("Power")
-  
- 
   
   Var_Selection <- map_dfr(list_csvs, function(df) {
     df |>

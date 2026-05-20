@@ -2,16 +2,16 @@
 ############################## Required Functions ##############################
 
 ### Stochastic Search Variable Selection
-source("~/Thesis/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-SSVS.R")
+source("~/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-SSVS.R")
 
 ### Risk Calculations
-source("~/Thesis/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-Risk_Calculations.R")
+source("~/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-Risk_Calculations.R")
 
 ### Evaluate Heterogeneity
-source("~/Thesis/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-Risk_Heterogeneity.R")
+source("~/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-Risk_Heterogeneity.R")
 
 ### Optimized Multiple Interactions
-source("~/Thesis/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-MultInteractions.R")
+source("~/Bayesian_RiskModel_TEH/Function/Helper_Script-Function/Fun-MultInteractions.R")
 
 
 

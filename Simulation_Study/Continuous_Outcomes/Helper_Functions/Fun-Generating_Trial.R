@@ -2,10 +2,10 @@
 ############################## Required Functions ##############################
 
 ### Generating baseline characteristics
-source("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Helper_Functions/Fun-Generating_Data.R")
+source("~/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Helper_Functions/Fun-Generating_Data.R")
 
 ### Outcome Generation
-source("~/Thesis/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Helper_Functions/Fun-Calculating_Outcomes.R")
+source("~/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Helper_Functions/Fun-Calculating_Outcomes.R")
 
 ############################ Generating Trial Data #############################
 

@@ -25,7 +25,7 @@ calculating_Outcomes <- function(Simulated_Data, Noise.Vars, T_Effect, H_Effect,
                         Z3 + 1.00 +
                           T_Effect * Treatment + 
                           0.75 * Z4 + 
-                          H_Effect * Treatment * (0.5 * Z4 + 0.5 * Z2) + 
+                          H_Effect * Treatment * (0.33 * Z4 + 0.33 * Z2 + 0.33 * Z1) + 
                           -0.75 * Z1 +
                           -0.75 * Z2,),
            Outcome = rnorm(1, mean = mu, sd = Outcome_SD)
