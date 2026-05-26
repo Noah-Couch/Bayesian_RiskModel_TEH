@@ -1,6 +1,6 @@
 
 Plot_Power_DF <- function(Power_DF) {
-  Plot_Power_DF <- Power |>
+  Plot_Power_DF <- Power_DF |>
     mutate(facet = paste0("Treatment Effect: ",T_Effect, ", Heterogeneous Effect: ", H_Effect)) |>
     pivot_longer(
       cols = starts_with("Power"),

@@ -13,7 +13,7 @@ Combined_Power_Plot <- function(H_Effects = c(0.00, 0.25,  0.50, 1.00),
   ### Defining Variables -------------------------------------------------------
   
   ### Removing simulations for type I error
-  H_Effects <- H_Effects[H_Effects != 0 & H_Effects != 0.25] 
+  H_Effects <- H_Effects[H_Effects != 0] 
   ### Defining the empty power data frame
   Power <- data.frame(
     N = double(),
