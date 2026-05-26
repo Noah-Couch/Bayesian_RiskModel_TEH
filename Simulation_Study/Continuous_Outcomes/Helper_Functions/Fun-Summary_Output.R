@@ -148,12 +148,25 @@ Summary_Output <- function(base_path, Outcome_SD, N_iter) {
     .id = "N") |>
     mutate(N = as.numeric(N))
   
-  
+  Accuracy <- map_dfr(list_csvs, function(df) {
+    df |>
+      summarise(
+        Bias = sum(as.numeric(Bias), na.rm = TRUE) / N_iter,
+        Bias_noise = sum(as.numeric(Bias_noise), na.rm = TRUE) / N_iter,
+        abs_Bias = sum(as.numeric(abs_Bias), na.rm = TRUE) / N_iter,
+        abs_Bias_noise = sum(as.numeric(abs_Bias_noise), na.rm = TRUE) / N_iter,
+        MSE = sum(as.numeric(MSE), na.rm = TRUE) / N_iter,
+        MSE_noise = sum(as.numeric(MSE_noise), na.rm = TRUE) / N_iter,
+        waic = sum(as.numeric(waic), na.rm = TRUE) / N_iter,
+        waic_noise = sum(as.numeric(waic_noise), na.rm = TRUE) / N_iter
+      ) },
+    .id = "N") |>
+    mutate(N = as.numeric(N))
   
   
   return(list(Plot = Plot,
               Power = Power,
-              Accuracy = Accuracy
+              Accuracy = Accuracy,
               Var_Selection = Var_Selection))
 }
 

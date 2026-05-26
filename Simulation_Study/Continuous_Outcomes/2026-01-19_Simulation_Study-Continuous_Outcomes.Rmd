@@ -20,7 +20,7 @@ library(progressr)
 library(future)
 
 if(detectCores() >= 30) {
-  numCores = 15
+  numCores = 25
 }
 
 registerDoFuture()
@@ -28,7 +28,7 @@ plan(multisession, workers = numCores)
 
 handlers("progress")
 
-required_packages <- c("tidyverse", "rjags", "HDInterval")
+required_packages <- c("tidyverse", "rjags", "HDInterval", "loo")
 ```
 
 ```{r, message=FALSE}
@@ -48,20 +48,20 @@ source("~/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Helper_Fun
 source("~/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Helper_Functions/Fun-Cleaning_Sim_Output.R")
 
 ### Plotting Output
-source(paste0(getwd(), "/Helper_Functions/Fun-Summary_Output.R"))
+source("~/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Helper_Functions/Fun-Summary_Output.R")
 
 ### Combining power plots
-source(paste0(getwd(), "/Helper_Functions/Fun-Combined_Power_Output.R"))
+source("~/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Helper_Functions/Fun-Combined_Power_Output.R")
 ```
 
 ```{r}
 ### Simulation Size
-N_iter  <- 10 # Number of iterations
+N_iter  <- 1000 # Number of iterations
 
 
 ### MCMC definitions
-Iterations <- 25
-Burn_in <- 25
+Iterations <- 2500
+Burn_in <- 1000
 
 
 ### Each Situation we wish to simulate through
@@ -90,9 +90,9 @@ Outcome_SD <- Outcome_SDs[1]
 
 ### Looping over Simulation Parameters -----------------------------------------
 
-for(g in 1:length(Het_Types)) {
+#for(g in 1:length(Het_Types)) {
   
-Het_Type   <- Het_Types[g]
+Het_Type   <- Het_Types[1]
 
 for(h in 1:length(Z4.types)) {
 
@@ -237,9 +237,9 @@ cat(paste(
   "    Heterogeneity Type: ", if_else(Het_Type == "uniVar", 
                                       "One Variable", 
                                       "Linear Combination"), "\n",
+  "   ", Z4.type, " Definition of Z4", "\n",
   "    Trial Size: ", N_trial, "\n",
   "    Treatment Effect: ", T_Effect, "; Heterogeneity Effect: ", H_Effect, "\n",
-  "   ", Z4.type, " Definition of Z4", "\n",
   "   ", Noise.Vars, " Noise variables considered\n",
   "\nPower Summary:", "\n",
   "   Optimized Model: ", Summary_Print[1], "\n",
@@ -290,9 +290,10 @@ write_csv(Var_Selection_Table,
 } #HE
 
 
-combined_power_plot.path <- paste0(getwd(), "/Combined_Power/", 
-                                   "Het_Type-", Het_Type, "_Z4-", Z4.type,
-                                   ".png")
+combined_power_plot.path <- paste0(getwd(), "/Combined_Power/")
+if (!dir.exists(combined_power_plot.path)) {
+  dir.create(combined_power_plot.path, recursive = TRUE)
+}
 
 comb_plot <- Combined_Power_Plot(Outcome_SD = Outcome_SD,
                                  Noise.Vars = Noise.Vars,
@@ -300,16 +301,17 @@ comb_plot <- Combined_Power_Plot(Outcome_SD = Outcome_SD,
                                  Z4.type = Z4.type)
 
 ggsave(
-  filename = combined_power_plot.path,
+  path = combined_power_plot.path,
+  filename = paste0("Het_Type-", Het_Type, "_Z4-", Z4.type, ".png"),
   plot = comb_plot,
   width = 14,
-  height = 10,
+  height = 6,
   units = "in"
 )
 
 } #Z4
   
-} #Het Type
+#} #Het Type
 
 ```
 

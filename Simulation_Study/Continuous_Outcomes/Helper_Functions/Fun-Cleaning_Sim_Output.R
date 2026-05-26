@@ -19,7 +19,13 @@ Clean_Output <- function(Trial_Data, Heterogeneity, Heterogeneity_Noise, Alterna
   HDI <- Heterogeneity$Heterogeneity$Intervals$beta_intx
   
   ### From Risk model
-  Prediction_Error <- (sum((Trial_Data$Outcome - Heterogeneity$Risk$Risk$Risk)^2)) / N_trial
+  Y <- mean(Trial_Data$Outcome)
+  Y_hat <- sum(Heterogeneity$Risk$Risk$Risk) / N_trial
+  Bias <- sum(Heterogeneity$Risk$Risk$Risk - Trial_Data$Outcome) / N_trial
+  abs_Bias <- sum(abs(Heterogeneity$Risk$Risk$Risk - Trial_Data$Outcome)) / N_trial
+  MSE  <- sum((Heterogeneity$Risk$Risk$Risk - Trial_Data$Outcome)^2) /N_trial
+  waic <- Heterogeneity$Risk$Risk$waic
+  
   
   ### From SSVS model
   included <- Heterogeneity$SSVS
@@ -33,7 +39,11 @@ Clean_Output <- function(Trial_Data, Heterogeneity, Heterogeneity_Noise, Alterna
   HDI_Noise <- Heterogeneity_Noise$Heterogeneity$Intervals$beta_intx
   
   ### From risk (noise) model
-  Prediction_Error_Noise <- sum((Trial_Data$Outcome - Heterogeneity_Noise$Risk$Risk$Risk)^2) / N_trial
+  Y_hat_noise <- mean(Heterogeneity_Noise$Risk$Risk$Risk)
+  Bias_noise <- sum(Heterogeneity_Noise$Risk$Risk$Risk - Trial_Data$Outcome) / N_trial
+  abs_Bias_noise <- sum(abs(Heterogeneity_Noise$Risk$Risk$Risk - Trial_Data$Outcome)) / N_trial
+  MSE_noise  <- sum((Heterogeneity_Noise$Risk$Risk$Risk - Trial_Data$Outcome)^2) /N_trial
+  waic_noise <- Heterogeneity_Noise$Risk$waic
   
   ### Defining Alternative Methods to Heterogeneity Outcomes--------------------
   
@@ -55,7 +65,12 @@ Clean_Output <- function(Trial_Data, Heterogeneity, Heterogeneity_Noise, Alterna
                          rejection.Risk = if_else((HDI[1] < 0 & 0 < HDI[2]), 
                                                   "Accept", "Reject"),
                          SSVS_results = paste(included, collapse = ", " ),
-                         Prediction_Error = Prediction_Error,
+                         Y = Y,
+                         Y_hat = Y_hat,
+                         Bias = Bias,
+                         abs_Bias = abs_Bias,
+                         MSE = MSE,
+                         waic = waic,
                          ### Noisy Risk Model ----------------------------------
                          Beta_intx_Noise = Beta_intx_Noise,
                          Lower.CI_Noise = HDI_Noise[1],
@@ -65,7 +80,11 @@ Clean_Output <- function(Trial_Data, Heterogeneity, Heterogeneity_Noise, Alterna
                            if_else(HDI_Noise[1] < 0 & 0 < HDI_Noise[2], 
                                    "Accept", "Reject"), 
                            NA),
-                         Prediction_Error_Noise = Prediction_Error_Noise,
+                         Y_hat_noise = Y_hat_noise,
+                         Bias_noise = Bias_noise,
+                         abs_Bias_noise = abs_Bias_noise,
+                         MSE_noise = MSE_noise,
+                         waic_noise = waic_noise,
                          ### Multiple Interactions (Optimized) -----------------
                          rejection.Opt_MultInt = if_else(Heterogeneity$Rejection_OptMultInt,
                                                          "Reject", "Accept"),

@@ -29,6 +29,8 @@ model_string.Risk <- "model{
   for(i in 1:n){
     Y[i]  ~  dnorm(mu[i], tau2)
     mu[i] <- beta0 + inprod(beta[],X[i,])
+    
+    log_lik[i] <- logdensity.norm(Y[i], mu[i], tau2)
   }
   #Priors
    for(j in 1:p){

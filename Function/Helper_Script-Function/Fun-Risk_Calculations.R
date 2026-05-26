@@ -2,6 +2,7 @@
 ############################### Calculating Risk ###############################
 
 require(rjags)
+require(loo)
 
 Risk_jags <- function(Trial_Data, included, Burn_in, Iterations,
                       model_string.Risk, Optimized = TRUE) {
@@ -57,18 +58,18 @@ Risk_jags <- function(Trial_Data, included, Burn_in, Iterations,
   
   update(model, Burn_in)
   JAGS_samps  <- coda.samples(model, 
-                              variable.names=c("beta0", "beta"), 
+                              variable.names=c("beta0", "beta", "log_lik"), 
                               n.iter= Iterations)
-  
   
   ### Calculating posterior means for beta coefficients ------------------------
   
   ### Combining the samples of all three chains
   Samps <- JAGS_samps[[1]] |> rbind(JAGS_samps[[2]], JAGS_samps[[3]])
-  
+
   ### Pulling betas
   beta0 <- Samps[,(p+1)]
   beta <- Samps[,1:p] |> as.data.frame()
+  log_lik <- Samps[,(p+2):ncol(Samps)]
   
   colnames(beta) <- colnames(X)
   
@@ -79,10 +80,15 @@ Risk_jags <- function(Trial_Data, included, Burn_in, Iterations,
   Post_Means <- data.frame(t(colMeans(Samps)))
   colnames(Post_Means) <- c(paste0("beta_", colnames(X)), "beta0")
   
-  R_hat <- gelman.diag(JAGS_samps)
+  ### Calculating WAIC ---------------------------------------------------------
+  waic_result <- loo::waic(log_lik)
+  waic <- waic_result$estimates["waic", "Estimate"]
+  
+  R_hat <- gelman.diag(JAGS_samps, multivariate = FALSE)
   
   return(list(Risk = Risk,
               Posterior_Means = Post_Means,
+              waic = waic,
               R_hat = R_hat))
 }
 
