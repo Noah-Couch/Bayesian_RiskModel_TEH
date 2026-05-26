@@ -20,7 +20,7 @@ library(progressr)
 library(future)
 
 if(detectCores() >= 30) {
-  numCores = 25
+  numCores = 15
 }
 
 registerDoFuture()
@@ -49,6 +49,9 @@ source("~/Bayesian_RiskModel_TEH/Simulation_Study/Continuous_Outcomes/Helper_Fun
 
 ### Plotting Output
 source(paste0(getwd(), "/Helper_Functions/Fun-Summary_Output.R"))
+
+### Combining power plots
+source(paste0(getwd(), "/Helper_Functions/Fun-Combined_Power_Output.R"))
 ```
 
 ```{r}
@@ -287,6 +290,22 @@ write_csv(Var_Selection_Table,
 } #HE
 
 
+combined_power_plot.path <- paste0(getwd(), "/Combined_Power/", 
+                                   "Het_Type-", Het_Type, "_Z4-", Z4.type,
+                                   ".png")
+
+comb_plot <- Combined_Power_Plot(Outcome_SD = Outcome_SD,
+                                 Noise.Vars = Noise.Vars,
+                                 Het_Type = Het_Type, 
+                                 Z4.type = Z4.type)
+
+ggsave(
+  filename = combined_power_plot.path,
+  plot = comb_plot,
+  width = 14,
+  height = 10,
+  units = "in"
+)
 
 } #Z4
   

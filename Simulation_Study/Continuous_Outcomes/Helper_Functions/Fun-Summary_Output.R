@@ -153,6 +153,7 @@ Summary_Output <- function(base_path, Outcome_SD, N_iter) {
   
   return(list(Plot = Plot,
               Power = Power,
+              Accuracy = Accuracy
               Var_Selection = Var_Selection))
 }
 
