@@ -81,7 +81,7 @@ Risk_jags <- function(Trial_Data, included, Burn_in, Iterations,
   colnames(Post_Means) <- c(paste0("beta_", colnames(X)), "beta0")
   
   ### Calculating WAIC ---------------------------------------------------------
-  waic_result <- loo::waic(log_lik)
+  waic_result <- suppressWarnings(loo::waic(log_lik))
   waic <- waic_result$estimates["waic", "Estimate"]
   
   R_hat <- gelman.diag(JAGS_samps, multivariate = FALSE)

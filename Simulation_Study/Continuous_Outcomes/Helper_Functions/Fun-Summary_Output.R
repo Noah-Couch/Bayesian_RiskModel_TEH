@@ -46,7 +46,7 @@ theme_update(
 Summary_Output <- function(base_path, Outcome_SD, N_iter) {
   file_names <- list.files(base_path, pattern = paste0("\\OutcomeSD_",Outcome_SD,".csv$"), full.names = TRUE)
   
-  list_csvs <- lapply(file_names, read_csv)
+  list_csvs <- lapply(file_names, read_csv, show_col_types = FALSE, na = c("N/A"))
   names(list_csvs) <- c(100, 150, 200, 30, 50)
   
   Power <- map_dfr(list_csvs, function(df) {
@@ -151,14 +151,14 @@ Summary_Output <- function(base_path, Outcome_SD, N_iter) {
   Accuracy <- map_dfr(list_csvs, function(df) {
     df |>
       summarise(
-        Bias = sum(as.numeric(Bias), na.rm = TRUE) / N_iter,
-        Bias_noise = sum(as.numeric(Bias_noise), na.rm = TRUE) / N_iter,
-        abs_Bias = sum(as.numeric(abs_Bias), na.rm = TRUE) / N_iter,
-        abs_Bias_noise = sum(as.numeric(abs_Bias_noise), na.rm = TRUE) / N_iter,
-        MSE = sum(as.numeric(MSE), na.rm = TRUE) / N_iter,
-        MSE_noise = sum(as.numeric(MSE_noise), na.rm = TRUE) / N_iter,
-        waic = sum(as.numeric(waic), na.rm = TRUE) / N_iter,
-        waic_noise = sum(as.numeric(waic_noise), na.rm = TRUE) / N_iter
+        Bias = mean(Bias, na.rm = TRUE),
+        Bias_noise = mean((Bias_noise), na.rm = TRUE),
+        abs_Bias = mean((abs_Bias), na.rm = TRUE),
+        abs_Bias_noise = mean((abs_Bias_noise), na.rm = TRUE),
+        MSE = mean((MSE), na.rm = TRUE),
+        MSE_noise = mean((MSE_noise), na.rm = TRUE),
+        waic = mean((waic), na.rm = TRUE),
+        waic_noise = mean((waic_noise), na.rm = TRUE)
       ) },
     .id = "N") |>
     mutate(N = as.numeric(N))

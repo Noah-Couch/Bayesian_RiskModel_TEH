@@ -60,7 +60,7 @@ N_iter  <- 1000 # Number of iterations
 
 
 ### MCMC definitions
-Iterations <- 2500
+Iterations <- 3500
 Burn_in <- 2500
 
 
@@ -120,12 +120,12 @@ N_trial  <- N_trials[k]
 
 Heterogeneity_List <- with_progress({
 
-p <- progressor(along = 1:N_iter)
+p <- progressor(steps = N_iter)
 
 foreach(l = 1:N_iter, .options.future = list(seed = TRUE,
                                              packages = required_packages)                              ) %dofuture% {
   
-  p(sprintf("iteration %d", l))
+  p(sprintf("N = %s | iteration %s of %s", N_trial, l, N_iter))
   
   Trial_Data <- Gen_Trial_Data(N_trial, 
                                Z4.type, 
@@ -277,6 +277,16 @@ write_csv(Power_Table,
           paste0(table_path, 
               "Noise_", Noise.Vars, "-OutcomeSD_", Outcome_SD,
               "-Power.csv"))
+
+Acc_Table <- Summary$Accuracy
+table_path <- paste0(base_path, "5-Tables/")
+if (!dir.exists(table_path)) {
+  dir.create(table_path)
+}
+write_csv(Acc_Table,
+          paste0(table_path, 
+              "Noise_", Noise.Vars, "-OutcomeSD_", Outcome_SD,
+              "-Accuracy.csv"))
 
 Var_Selection_Table <- Summary$Var_Selection
 write_csv(Var_Selection_Table,
